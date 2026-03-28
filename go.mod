@@ -3,6 +3,7 @@ module clipmaster
 go 1.23.0
 
 require (
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/pelletier/go-toml/v2 v2.3.0
 	github.com/wailsapp/wails/v2 v2.12.0
 )

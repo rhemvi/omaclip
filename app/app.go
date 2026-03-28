@@ -51,6 +51,14 @@ func (a *App) Startup(ctx context.Context) {
 		runtime.EventsEmit(ctx, "theme:loaded", colors)
 	}
 
+	w := theme.NewWatcher(a.cfg.ThemeColorPath, func(c theme.ThemeColors) {
+		a.colors = c
+		runtime.EventsEmit(ctx, "theme:loaded", c)
+	})
+	if err := w.Start(ctx); err != nil {
+		runtime.LogWarningf(ctx, "could not watch theme file: %v", err)
+	}
+
 	a.monitor.OnNewEntry = func(entry clipboard.ClipboardEntry) {
 		runtime.EventsEmit(ctx, "clipboard:new", entry)
 	}
