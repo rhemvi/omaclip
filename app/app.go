@@ -2,36 +2,45 @@ package app
 
 import (
 	"context"
+	"os/exec"
 
 	"clipmaster/business/clipboard"
 	"clipmaster/business/theme"
-	"clipmaster/foundation/config"
 	osclip "clipmaster/foundation/clipboard"
+	"clipmaster/foundation/config"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App is the Wails bind target. It owns startup/shutdown and delegates to business packages.
 type App struct {
-	ctx     context.Context
-	cfg     config.AppConfig
-	monitor *clipboard.Monitor
-	colors  theme.ThemeColors
+	ctx        context.Context
+	cfg        config.AppConfig
+	monitor    *clipboard.Monitor
+	colors     theme.ThemeColors
+	useWayland bool
 }
 
 // NewApp creates an App with default configuration.
 func NewApp() *App {
 	cfg := config.Default()
-	backend := osclip.WaylandClipboard{}
 	return &App{
-		cfg:     cfg,
-		monitor: clipboard.NewMonitor(backend, cfg.MaxHistory, cfg.PollInterval),
+		cfg:        cfg,
+		useWayland: isWaylandAvailable(),
 	}
 }
 
 // Startup is called by Wails when the application starts.
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
+
+	var backend clipboard.Backend
+	if a.useWayland {
+		backend = osclip.WaylandClipboard{}
+	} else {
+		backend = clipboard.GenericClipboard{Ctx: ctx}
+	}
+	a.monitor = clipboard.NewMonitor(backend, a.cfg.MaxHistory, a.cfg.PollInterval)
 
 	colors, err := theme.Load(a.cfg.ThemeColorPath)
 	if err != nil {
@@ -65,4 +74,9 @@ func (a *App) CopyItem(id string) error {
 // GetTheme returns the currently loaded theme colors.
 func (a *App) GetTheme() theme.ThemeColors {
 	return a.colors
+}
+
+func isWaylandAvailable() bool {
+	_, err := exec.LookPath("wl-paste")
+	return err == nil
 }
