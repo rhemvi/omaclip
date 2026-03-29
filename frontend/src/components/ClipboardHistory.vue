@@ -28,7 +28,10 @@ function handleKeydown(e) {
   } else if (e.key === 'Enter' && clipboard.selectedIndex >= 0) {
     e.preventDefault()
     const item = clipboard.items[clipboard.selectedIndex]
-    if (item) clipboard.copyItem(item.id)
+    if (item) {
+      clipboard.copyItem(item.id)
+      if (clipboard.expandedIds.has(item.id)) clipboard.toggleExpanded(item.id)
+    }
   } else if (e.key === ' ' && clipboard.selectedIndex >= 0) {
     e.preventDefault()
     const item = clipboard.items[clipboard.selectedIndex]
