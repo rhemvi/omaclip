@@ -1,3 +1,4 @@
+// Package app is the Wails bind target that wires together all business packages.
 package app
 
 import (
@@ -57,7 +58,7 @@ func (a *App) Startup(ctx context.Context) {
 	if areWeRunningInOmarchy(a.cfg.ThemeColorPath) {
 		colors, err := theme.Load(a.cfg.ThemeColorPath)
 		if err != nil {
-			runtime.LogWarningf(ctx, "could not load theme: %v", err)
+			a.log.Warn("could not load theme", "error", err)
 		} else {
 			a.colors = colors
 			runtime.EventsEmit(ctx, "theme:loaded", colors)
@@ -68,7 +69,7 @@ func (a *App) Startup(ctx context.Context) {
 			runtime.EventsEmit(ctx, "theme:loaded", c)
 		})
 		if err := w.Start(ctx); err != nil {
-			runtime.LogWarningf(ctx, "could not watch theme file: %v", err)
+			a.log.Warn("could not watch theme file", "error", err)
 		}
 	}
 

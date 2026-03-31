@@ -1,3 +1,4 @@
+// Package clipboard manages clipboard history and monitors the system clipboard for new entries.
 package clipboard
 
 import (

@@ -1,3 +1,4 @@
+// Package theme handles loading and watching the Omarchy color theme.
 package theme
 
 import (

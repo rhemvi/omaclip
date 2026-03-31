@@ -1,3 +1,4 @@
+// Package clipboard provides OS-level clipboard access.
 package clipboard
 
 import (
