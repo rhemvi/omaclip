@@ -15,13 +15,7 @@ export const useClipboardStore = defineStore('clipboard', () => {
     items.value = await GetHistory()
   }
 
-  // prependEntry inserts a new entry at the top of the list, received via Wails event.
-  function prependEntry(entry) {
-    items.value.unshift(entry)
-    if (selectedIndex.value >= 0) selectedIndex.value++
-  }
-
-  // copyItem writes the entry back to the system clipboard then refreshes.
+// copyItem writes the entry back to the system clipboard then refreshes.
   async function copyItem(id) {
     lastCopiedId.value = id
     await CopyItem(id)
@@ -64,5 +58,5 @@ export const useClipboardStore = defineStore('clipboard', () => {
     expandedIds.value = s
   }
 
-  return { items, selectedIndex, lastCopiedId, keyboardActive, showShortcuts, expandedIds, fetchHistory, prependEntry, copyItem, selectNext, selectPrev, clearSelection, deactivateKeyboard, collapseAll, toggleExpanded }
+  return { items, selectedIndex, lastCopiedId, keyboardActive, showShortcuts, expandedIds, fetchHistory, copyItem, selectNext, selectPrev, clearSelection, deactivateKeyboard, collapseAll, toggleExpanded }
 })

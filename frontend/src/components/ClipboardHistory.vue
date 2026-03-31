@@ -55,7 +55,7 @@ function handleKeydown(e) {
 
 onMounted(() => {
   clipboard.fetchHistory()
-  EventsOn('clipboard:new', clipboard.prependEntry)
+  EventsOn('clipboard:new', clipboard.fetchHistory)
   window.addEventListener('keydown', handleKeydown)
   window.addEventListener('mousemove', handleMouseMove)
 })

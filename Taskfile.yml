@@ -1,12 +1,19 @@
 version: "3"
 
 tasks:
+  default:
+    cmds:
+      - task: app:dev
+    silent: true
+
   frontend:build:
+    desc: Build the Vue frontend
     dir: frontend
     cmds:
       - npm run build
 
   app:build:
+    desc: Build the production binary with VCS info embedded
     vars:
       REVISION:
         sh: git rev-parse HEAD
@@ -17,5 +24,6 @@ tasks:
       - wails build -ldflags "-X clipmaster/foundation/vcs.Revision={{.REVISION}} -X clipmaster/foundation/vcs.Modified={{.MODIFIED}}"
 
   app:dev:
+    desc: Start the application in development mode
     cmds:
       - wails dev
