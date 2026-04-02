@@ -12,7 +12,7 @@ import PassphraseSetup from './components/PassphraseSetup.vue'
 const themeStore = useThemeStore()
 const clipboard = useClipboardStore()
 const remote = useRemoteStore()
-const needsSetup = ref(true)
+const needsSetup = ref(false)
 
 const showToast = computed(() => clipboard.lastCopiedId !== null || remote.lastCopiedId !== null)
 

@@ -4,6 +4,7 @@ package mdns
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"log"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"clipmaster/business/passphrase"
 
 	"github.com/hashicorp/mdns"
 )
@@ -34,10 +37,11 @@ const peerTTLCycles = 3
 
 // Discoverer registers this instance via mDNS and continuously browses for peers.
 type Discoverer struct {
-	log          *slog.Logger
-	server       *mdns.Server
-	myName       string
-	browsePeriod time.Duration
+	log             *slog.Logger
+	server          *mdns.Server
+	myName          string
+	browsePeriod    time.Duration
+	passphraseStore *passphrase.Store
 
 	mu       sync.RWMutex
 	peers    map[string]Peer
@@ -46,14 +50,20 @@ type Discoverer struct {
 }
 
 // New creates a Discoverer. Call Register then Start to begin advertising and browsing.
-func New(log *slog.Logger, browsePeriod time.Duration, hostname string) *Discoverer {
+func New(log *slog.Logger, browsePeriod time.Duration, hostname string, ps *passphrase.Store) *Discoverer {
 	return &Discoverer{
-		log:          log,
-		browsePeriod: browsePeriod,
-		peers:        make(map[string]Peer),
-		lastSeen:     make(map[string]int),
-		hostname:     hostname,
+		log:             log,
+		browsePeriod:    browsePeriod,
+		peers:           make(map[string]Peer),
+		lastSeen:        make(map[string]int),
+		hostname:        hostname,
+		passphraseStore: ps,
 	}
+}
+
+func passphraseHash(passphrase string) string {
+	sum := sha256.Sum256([]byte(passphrase))
+	return fmt.Sprintf("%x", sum[:8])
 }
 
 // Register advertises this Clipmaster instance at the given port via mDNS.
@@ -66,7 +76,7 @@ func (d *Discoverer) Register(port int) error {
 		return ErrNoDiscoverableIPs
 	}
 
-	svc, err := mdns.NewMDNSService(instanceName, serviceType, domain, "", port, ips, []string{"version=1"})
+	svc, err := mdns.NewMDNSService(instanceName, serviceType, domain, "", port, ips, []string{"version=1", "ph=" + passphraseHash(d.passphraseStore.Get())})
 	if err != nil {
 		return fmt.Errorf("mdns: creating service: %w", err)
 	}
@@ -137,6 +147,11 @@ func (d *Discoverer) browse() {
 			continue
 		}
 
+		if !d.peerMatchesPassphrase(entry.InfoFields) {
+			d.log.Debug("mdns peer skipped: passphrase mismatch", "name", entry.Name)
+			continue
+		}
+
 		addr := ""
 		if entry.AddrV4 != nil {
 			addr = entry.AddrV4.String()
@@ -192,4 +207,14 @@ func filterIPs(candidates []net.IP) []net.IP {
 		}
 	}
 	return ips
+}
+
+func (d *Discoverer) peerMatchesPassphrase(infoFields []string) bool {
+	hash := passphraseHash(d.passphraseStore.Get())
+	for _, field := range infoFields {
+		if strings.HasPrefix(field, "ph=") {
+			return strings.TrimPrefix(field, "ph=") == hash
+		}
+	}
+	return false
 }

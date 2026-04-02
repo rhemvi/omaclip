@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"clipmaster/business/clipboard"
+	"clipmaster/business/passphrase"
 	fmdns "clipmaster/foundation/mdns"
 )
 
@@ -25,10 +26,11 @@ type PeerClipboard struct {
 
 // Fetcher periodically fetches clipboard history from all discovered peers.
 type Fetcher struct {
-	log          *slog.Logger
-	discoverer   *fmdns.Discoverer
-	syncInterval time.Duration
-	client       *http.Client
+	log             *slog.Logger
+	discoverer      *fmdns.Discoverer
+	syncInterval    time.Duration
+	passphraseStore *passphrase.Store
+	client          *http.Client
 
 	mu    sync.RWMutex
 	cache map[string]PeerClipboard
@@ -37,11 +39,12 @@ type Fetcher struct {
 }
 
 // New creates a Fetcher. Call Start to begin periodic fetching.
-func New(log *slog.Logger, discoverer *fmdns.Discoverer, syncInterval time.Duration) *Fetcher {
+func New(log *slog.Logger, discoverer *fmdns.Discoverer, syncInterval time.Duration, ps *passphrase.Store) *Fetcher {
 	return &Fetcher{
-		log:          log,
-		discoverer:   discoverer,
-		syncInterval: syncInterval,
+		log:             log,
+		discoverer:      discoverer,
+		syncInterval:    syncInterval,
+		passphraseStore: ps,
 		// InsecureSkipVerify is set because peers use self-signed certificates generated
 		// in memory at startup with no CA. The standard TLS verification would always fail.
 		// A proper fix would be to have peers exchange their certificates via mDNS TXT records
@@ -127,7 +130,13 @@ func (f *Fetcher) fetchAll() {
 
 func (f *Fetcher) fetchPeer(p fmdns.Peer) ([]clipboard.ClipboardEntry, error) {
 	url := fmt.Sprintf("https://%s:%d/api/clipboard", p.Addr, p.Port)
-	resp, err := f.client.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Clipmaster-Pass", f.passphraseStore.Get())
+
+	resp, err := f.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"clipmaster/app"
+	fconfig "clipmaster/foundation/config"
 	"clipmaster/foundation/logger"
 	"clipmaster/foundation/vcs"
 
@@ -25,6 +26,7 @@ var assets embed.FS
 
 type appConfig struct {
 	ThemeColorPath string `conf:"help:fullpath to the Omarchy theme colors.toml file (default: $HOME/.config/omarchy/current/theme/colors.toml)"`
+	ConfigPath     string `conf:"help:path to the clipmaster config file (default: $HOME/.config/clipmaster/config.json)"`
 	Debug          bool   `conf:"default:false,help:enable debug log level"`
 	Clipboard      struct {
 		MaxHistory   int           `conf:"default:50,help:maximum number of clipboard entries to keep in history"`
@@ -50,6 +52,7 @@ func main() {
 func run() error {
 	cfg := appConfig{
 		ThemeColorPath: filepath.Join(os.Getenv("HOME"), ".config/omarchy/current/theme/colors.toml"),
+		ConfigPath:     fconfig.DefaultPath(),
 	}
 	cfg.Build = vcs.Version()
 
@@ -77,6 +80,7 @@ func run() error {
 	application := app.NewApp(log, app.Config{
 		MaxHistory:                   cfg.Clipboard.MaxHistory,
 		ThemeColorPath:               cfg.ThemeColorPath,
+		ConfigPath:                   cfg.ConfigPath,
 		PollInterval:                 cfg.Clipboard.PollInterval,
 		RemoteClipboardsPollInterval: cfg.RemoteClipboards.PollInterval,
 		RemoteClipboardsMaxHistory:   cfg.RemoteClipboards.MaxHistory,

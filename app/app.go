@@ -10,10 +10,12 @@ import (
 
 	"clipmaster/app/handlers"
 	"clipmaster/business/clipboard"
+	"clipmaster/business/passphrase"
 	"clipmaster/business/peersclipsync"
 	bsync "clipmaster/business/sync"
 	"clipmaster/business/theme"
 	osclip "clipmaster/foundation/clipboard"
+	fconfig "clipmaster/foundation/config"
 	fmdns "clipmaster/foundation/mdns"
 	"clipmaster/foundation/tlscert"
 
@@ -24,6 +26,7 @@ import (
 type Config struct {
 	MaxHistory                   int
 	ThemeColorPath               string
+	ConfigPath                   string
 	PollInterval                 time.Duration
 	RemoteClipboardsPollInterval time.Duration
 	RemoteClipboardsMaxHistory   int
@@ -38,18 +41,19 @@ type App struct {
 	monitor     *clipboard.Monitor
 	colors      theme.ThemeColors
 	useWayland  bool
-	syncServer  *bsync.Server
-	discoverer  *fmdns.Discoverer
-	peerFetcher *peersclipsync.Fetcher
-	passphrase  string
+	syncServer      *bsync.Server
+	discoverer      *fmdns.Discoverer
+	peerFetcher     *peersclipsync.Fetcher
+	passphraseStore *passphrase.Store
 }
 
 // NewApp creates an App with the provided configuration.
 func NewApp(log *slog.Logger, cfg Config) *App {
 	return &App{
-		cfg:        cfg,
-		log:        log,
-		useWayland: isWaylandAvailable(),
+		cfg:             cfg,
+		log:             log,
+		useWayland:      isWaylandAvailable(),
+		passphraseStore: &passphrase.Store{},
 	}
 }
 
@@ -85,33 +89,12 @@ func (a *App) Startup(ctx context.Context) {
 		}
 	}
 
-	cert, err := tlscert.Generate()
-	if err != nil {
-		a.log.Error("failed to generate TLS cert", "error", err)
-		runtime.Quit(ctx)
-		return
+	if cfg, err := fconfig.Load(a.cfg.ConfigPath); err == nil {
+		a.passphraseStore.Set(cfg.Passphrase)
 	}
 
-	a.syncServer = bsync.New(a.log, cert)
-	registerRoutes(a.syncServer, &handlers.ClipboardHandler{
-		Monitor:    a.monitor,
-		MaxHistory: a.cfg.RemoteClipboardsMaxHistory,
-	})
-	if err := a.syncServer.Start(ctx); err != nil {
-		a.log.Warn("sync server failed to start", "error", err)
-	} else {
-		host, _ := os.Hostname()
-		a.discoverer = fmdns.New(a.log, a.cfg.PeersPollInterval, host)
-		if err := a.discoverer.Register(a.syncServer.Port()); err != nil {
-			a.log.Warn("mDNS registration failed", "error", err)
-		}
-		a.discoverer.Start(ctx)
-
-		a.peerFetcher = peersclipsync.New(a.log, a.discoverer, a.cfg.RemoteClipboardsPollInterval)
-		a.peerFetcher.OnUpdate = func() {
-			runtime.EventsEmit(a.ctx, "remote:updated")
-		}
-		a.peerFetcher.Start(ctx)
+	if a.passphraseStore.Get() != "" {
+		a.startNetworking()
 	}
 
 	a.monitor.OnNewEntry = func(entry clipboard.ClipboardEntry) {
@@ -160,15 +143,54 @@ func (a *App) GetTheme() theme.ThemeColors {
 	return a.colors
 }
 
-// NeedsPassphrase reports whether the user still needs to provide a passphrase.
+// NeedsPassphrase reports whether a passphrase has not yet been configured.
 func (a *App) NeedsPassphrase() bool {
-	return a.passphrase == ""
+	cfg, err := fconfig.Load(a.cfg.ConfigPath)
+	return err != nil || cfg.Passphrase == ""
 }
 
-// SubmitPassphrase stores the passphrase provided by the user.
-func (a *App) SubmitPassphrase(p string) {
-	a.log.Info("passphrase received (prototype, not persisted)")
-	a.passphrase = p
+// SubmitPassphrase saves the passphrase provided by the user and starts networking.
+func (a *App) SubmitPassphrase(passphrase string) error {
+	if err := fconfig.Save(a.cfg.ConfigPath, fconfig.Config{Passphrase: passphrase}); err != nil {
+		return err
+	}
+	a.passphraseStore.Set(passphrase)
+	a.startNetworking()
+	return nil
+}
+
+// startNetworking initialises the TLS sync server, mDNS discovery, and peer fetcher.
+// It is called at startup when a passphrase is already configured, or on first SubmitPassphrase.
+func (a *App) startNetworking() {
+	cert, err := tlscert.Generate()
+	if err != nil {
+		a.log.Error("failed to generate TLS cert", "error", err)
+		return
+	}
+
+	a.syncServer = bsync.New(a.log, cert)
+	registerRoutes(a.syncServer, &handlers.ClipboardHandler{
+		Monitor:         a.monitor,
+		MaxHistory:      a.cfg.RemoteClipboardsMaxHistory,
+		PassphraseStore: a.passphraseStore,
+	})
+	if err := a.syncServer.Start(a.ctx); err != nil {
+		a.log.Warn("sync server failed to start", "error", err)
+		return
+	}
+
+	host, _ := os.Hostname()
+	a.discoverer = fmdns.New(a.log, a.cfg.PeersPollInterval, host, a.passphraseStore)
+	if err := a.discoverer.Register(a.syncServer.Port()); err != nil {
+		a.log.Warn("mDNS registration failed", "error", err)
+	}
+	a.discoverer.Start(a.ctx)
+
+	a.peerFetcher = peersclipsync.New(a.log, a.discoverer, a.cfg.RemoteClipboardsPollInterval, a.passphraseStore)
+	a.peerFetcher.OnUpdate = func() {
+		runtime.EventsEmit(a.ctx, "remote:updated")
+	}
+	a.peerFetcher.Start(a.ctx)
 }
 
 func areWeRunningInOmarchy(themeColorPath string) bool {

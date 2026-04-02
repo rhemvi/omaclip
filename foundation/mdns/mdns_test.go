@@ -9,6 +9,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"clipmaster/business/passphrase"
 )
 
 var discardLog = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -109,7 +111,7 @@ func TestLanIPs_OnlyIPv4(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	host, _ := os.Hostname()
-	d := New(discardLog, 5*time.Second, host)
+	d := New(discardLog, 5*time.Second, host, &passphrase.Store{})
 
 	if d.log != discardLog {
 		t.Error("logger not set")
@@ -124,7 +126,7 @@ func TestNew(t *testing.T) {
 
 func TestPeers_EmptyByDefault(t *testing.T) {
 	host, _ := os.Hostname()
-	d := New(discardLog, 5*time.Second, host)
+	d := New(discardLog, 5*time.Second, host, &passphrase.Store{})
 
 	peers := d.Peers()
 	if len(peers) != 0 {
@@ -134,13 +136,13 @@ func TestPeers_EmptyByDefault(t *testing.T) {
 
 func TestShutdown_NilServer(t *testing.T) {
 	host, _ := os.Hostname()
-	d := New(discardLog, 5*time.Second, host)
+	d := New(discardLog, 5*time.Second, host, &passphrase.Store{})
 	d.Shutdown()
 }
 
 func TestRegister_NoDiscoverableIps(t *testing.T) {
 	// give invalid host to force no discoverable ips
-	d1 := New(discardLog, 100*time.Millisecond, "invalid")
+	d1 := New(discardLog, 100*time.Millisecond, "invalid", &passphrase.Store{})
 
 	err := d1.Register(19901)
 	if !errors.Is(err, ErrNoDiscoverableIPs) {
@@ -150,8 +152,10 @@ func TestRegister_NoDiscoverableIps(t *testing.T) {
 
 func TestDiscovery_TwoPeers(t *testing.T) {
 	host, _ := os.Hostname()
-	d1 := New(discardLog, 100*time.Millisecond, host)
-	d2 := New(discardLog, 100*time.Millisecond, host)
+	ps := &passphrase.Store{}
+	ps.Set("testpass")
+	d1 := New(discardLog, 100*time.Millisecond, host, ps)
+	d2 := New(discardLog, 100*time.Millisecond, host, ps)
 
 	if err := d1.Register(19901); err != nil {
 		t.Fatalf("d1 register: %v", err)
@@ -211,7 +215,7 @@ func TestDiscovery_TwoPeers(t *testing.T) {
 
 func TestBrowseLoop_StopsOnCancel(t *testing.T) {
 	host, _ := os.Hostname()
-	d := New(discardLog, 50*time.Millisecond, host)
+	d := New(discardLog, 50*time.Millisecond, host, &passphrase.Store{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	d.Start(ctx)
