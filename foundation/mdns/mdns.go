@@ -9,7 +9,6 @@ import (
 	"log"
 	"log/slog"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +20,8 @@ const (
 	serviceType = "_clipmaster._tcp"
 	domain      = "local."
 )
+
+var ErrNoDiscoverableIPs = fmt.Errorf("mdns: no discoverable IPs, skipping registering to the network")
 
 // Peer describes a discovered remote Clipmaster instance.
 type Peer struct {
@@ -36,35 +37,29 @@ type Discoverer struct {
 	myName       string
 	browsePeriod time.Duration
 
-	mu    sync.RWMutex
-	peers map[string]Peer
+	mu       sync.RWMutex
+	peers    map[string]Peer
+	hostname string
 }
 
 // New creates a Discoverer. Call Register then Start to begin advertising and browsing.
-func New(log *slog.Logger, browsePeriod time.Duration) *Discoverer {
+func New(log *slog.Logger, browsePeriod time.Duration, hostname string) *Discoverer {
 	return &Discoverer{
 		log:          log,
 		browsePeriod: browsePeriod,
 		peers:        make(map[string]Peer),
+		hostname:     hostname,
 	}
 }
 
 // Register advertises this Clipmaster instance at the given port via mDNS.
 func (d *Discoverer) Register(port int) error {
-	host, _ := os.Hostname()
-	instanceName := fmt.Sprintf("%s-%d", host, port)
+	instanceName := fmt.Sprintf("%s-%d", d.hostname, port)
 	d.myName = instanceName
 
-	var ips []net.IP
-	addrs, err := net.InterfaceAddrs()
-	if err == nil {
-		for _, addr := range addrs {
-			if ipnet, ok := addr.(*net.IPNet); ok {
-				if ip4 := ipnet.IP.To4(); ip4 != nil && !ipnet.IP.IsLoopback() {
-					ips = append(ips, ip4)
-				}
-			}
-		}
+	ips := lanIPs(d.hostname)
+	if ips == nil {
+		return ErrNoDiscoverableIPs
 	}
 
 	svc, err := mdns.NewMDNSService(instanceName, serviceType, domain, "", port, ips, []string{"version=1"})
@@ -159,4 +154,26 @@ func (d *Discoverer) browse() {
 	for _, p := range found {
 		d.log.Info("mdns peer discovered", "name", p.Name, "addr", p.Addr, "port", p.Port)
 	}
+}
+
+func lanIPs(hostname string) []net.IP {
+	resolved, err := net.LookupIP(hostname)
+	if err != nil {
+		return nil
+	}
+
+	return filterIPs(resolved)
+}
+
+func filterIPs(candidates []net.IP) []net.IP {
+	// 172.16.0.0/12 (RFC 1918 private range 172.16.0.0–172.31.255.255) is commonly used by Docker bridge networks and not routable across the LAN.
+	_, blockedNet, _ := net.ParseCIDR("172.16.0.0/12")
+
+	var ips []net.IP
+	for _, ip := range candidates {
+		if ip4 := ip.To4(); ip4 != nil && !blockedNet.Contains(ip4) {
+			ips = append(ips, ip4)
+		}
+	}
+	return ips
 }

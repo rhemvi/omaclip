@@ -92,7 +92,8 @@ func (a *App) Startup(ctx context.Context) {
 	if err := a.syncServer.Start(ctx); err != nil {
 		a.log.Warn("sync server failed to start", "error", err)
 	} else {
-		a.discoverer = fmdns.New(a.log, a.cfg.PeersPollInterval)
+		host, _ := os.Hostname()
+		a.discoverer = fmdns.New(a.log, a.cfg.PeersPollInterval, host)
 		if err := a.discoverer.Register(a.syncServer.Port()); err != nil {
 			a.log.Warn("mDNS registration failed", "error", err)
 		}
