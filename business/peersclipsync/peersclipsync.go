@@ -100,7 +100,7 @@ func (f *Fetcher) fetchAll() {
 	for _, p := range peers {
 		entries, err := f.fetchPeer(p)
 		if err != nil {
-			f.log.Warn("failed to fetch peer clipboard", "peer", p.Name, "error", err)
+			f.log.Debug("failed to fetch peer clipboard", "peer", p.Name, "error", err)
 			continue
 		}
 		displayName := strings.SplitN(p.Name, ".", 2)[0]

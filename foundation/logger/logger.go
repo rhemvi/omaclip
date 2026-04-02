@@ -6,9 +6,9 @@ import (
 	"os"
 )
 
-func New() *slog.Logger {
+func New(minLevel slog.Level) *slog.Logger {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level:     slog.LevelInfo,
+		Level:     minLevel,
 		AddSource: true,
 	})
 

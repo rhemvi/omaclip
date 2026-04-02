@@ -24,31 +24,30 @@ import (
 var assets embed.FS
 
 type appConfig struct {
-	ThemeColorPath string `conf:""`
+	ThemeColorPath string `conf:"help:fullpath to the Omarchy theme colors.toml file (default: $HOME/.config/omarchy/current/theme/colors.toml)"`
+	Debug          bool   `conf:"default:false,help:enable debug log level"`
 	Clipboard      struct {
-		MaxHistory   int           `conf:"default:50"`
-		PollInterval time.Duration `conf:"default:500ms"`
+		MaxHistory   int           `conf:"default:50,help:maximum number of clipboard entries to keep in history"`
+		PollInterval time.Duration `conf:"default:500ms,help:how often to poll the system clipboard for changes"`
 	}
 	RemoteClipboards struct {
-		MaxHistory   int           `conf:"default:3"`
-		PollInterval time.Duration `conf:"default:1s"`
+		MaxHistory   int           `conf:"default:3,help:maximum number of remote clipboard entries to keep per peer"`
+		PollInterval time.Duration `conf:"default:1s,help:how often to fetch clipboard entries from remote peers"`
 	}
 	Peers struct {
-		PollInterval time.Duration `conf:"default:6s"`
+		PollInterval time.Duration `conf:"default:2s,help:how often to browse for peers on the local network via mDNS"`
 	}
 	conf.Version
 }
 
 func main() {
-	log := logger.New()
-
-	if err := run(log); err != nil {
-		log.Error("application error", "error", err)
+	if err := run(); err != nil {
+		logger.New(slog.LevelInfo).Error("application error", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(log *slog.Logger) error {
+func run() error {
 	cfg := appConfig{
 		ThemeColorPath: filepath.Join(os.Getenv("HOME"), ".config/omarchy/current/theme/colors.toml"),
 	}
@@ -62,6 +61,12 @@ func run(log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("parsing config: %w", err)
 	}
+
+	minLevel := slog.LevelInfo
+	if cfg.Debug {
+		minLevel = slog.LevelDebug
+	}
+	log := logger.New(minLevel)
 
 	cfgStr, err := conf.String(&cfg)
 	if err != nil {

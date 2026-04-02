@@ -168,7 +168,7 @@ func (d *Discoverer) browse() {
 	d.mu.Unlock()
 
 	for _, p := range seen {
-		d.log.Info("mdns peer discovered", "name", p.Name, "addr", p.Addr, "port", p.Port)
+		d.log.Debug("mdns peer discovered", "name", p.Name, "addr", p.Addr, "port", p.Port)
 	}
 }
 
