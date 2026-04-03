@@ -87,7 +87,10 @@ func (a *App) Startup(ctx context.Context) {
 		}
 	}
 
-	validatePassphraseFromConfig(a)
+	if err := validatePassphraseFromConfig(a.cfg.ConfigPath, a.passphraseStore); err != nil {
+		a.log.Error(err.Error())
+		os.Exit(1)
+	}
 
 	if a.passphraseStore.Get() != "" && !a.cfg.DisableRemoteClipboards {
 		a.startNetworking()
@@ -149,8 +152,7 @@ func (a *App) NeedsPassphrase() bool {
 	if a.cfg.DisableRemoteClipboards {
 		return false
 	}
-	cfg, err := fconfig.Load(a.cfg.ConfigPath)
-	return err != nil || cfg.Passphrase == ""
+	return a.passphraseStore.Get() == ""
 }
 
 // SubmitPassphrase validates, saves the passphrase provided by the user, and starts networking.
@@ -167,20 +169,16 @@ func (a *App) SubmitPassphrase(p string) error {
 }
 
 // validatePassphraseFromConfig checks if a passphrase is already set in the config file, and if so validates it and sets it in the store.
-// If the passphrase is invalid, it logs an error and exits since the app can't function without a valid passphrase.
-func validatePassphraseFromConfig(a *App) {
-	if cfg, err := fconfig.Load(a.cfg.ConfigPath); err == nil && cfg.Passphrase != "" {
-		if err := passphrase.Validate(cfg.Passphrase); err != nil {
-			a.log.Error(
-				fmt.Sprintf("invalid passphrase in config file — fix or delete %s and restart", a.cfg.ConfigPath),
-				"error",
-				err,
-			)
-			a.monitor.Stop()
-			os.Exit(1)
-		}
-		a.passphraseStore.Set(cfg.Passphrase)
+func validatePassphraseFromConfig(configPath string, store *passphrase.Store) error {
+	cfg, err := fconfig.Load(configPath)
+	if err != nil || cfg.Passphrase == "" {
+		return nil
 	}
+	if err := passphrase.Validate(cfg.Passphrase); err != nil {
+		return fmt.Errorf("invalid passphrase in config file — fix or delete %s and restart: %w", configPath, err)
+	}
+	store.Set(cfg.Passphrase)
+	return nil
 }
 
 // startNetworking initialises the TLS sync server, mDNS discovery, and peer fetcher.

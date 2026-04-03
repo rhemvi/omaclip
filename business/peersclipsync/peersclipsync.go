@@ -119,13 +119,27 @@ func (f *Fetcher) fetchAll() {
 		}
 		displayName := strings.SplitN(p.Name, ".", 2)[0]
 		f.mu.Lock()
-		f.cache[p.Name] = PeerClipboard{PeerName: displayName, Entries: entries}
+		if !sameEntryIDs(f.cache[p.Name].Entries, entries) {
+			f.cache[p.Name] = PeerClipboard{PeerName: displayName, Entries: entries}
+			changed = true
+		}
 		f.mu.Unlock()
-		changed = true
 	}
 	if changed && f.OnUpdate != nil {
 		f.OnUpdate()
 	}
+}
+
+func sameEntryIDs(a, b []clipboard.ClipboardEntry) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].ID != b[i].ID {
+			return false
+		}
+	}
+	return true
 }
 
 func (f *Fetcher) fetchPeer(p fmdns.Peer) ([]clipboard.ClipboardEntry, error) {

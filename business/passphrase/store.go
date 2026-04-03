@@ -51,14 +51,19 @@ func (s *Store) Get() string {
 	return s.value
 }
 
-// argon2Salt is a fixed app-specific salt. Peers must produce the same hash from the
-// same passphrase independently, so a random per-user salt is not possible here.
-// The fixed salt still defeats precomputed rainbow tables targeting this app.
-var argon2Salt = []byte("clipmaster-v1")
+// reversePassphrase returns the UTF-8 reversal of p, used as the Argon2id salt.
+// Deriving the salt from the input avoids a hardcoded constant visible in source code.
+func reversePassphrase(p string) []byte {
+	runes := []rune(p)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return []byte(string(runes))
+}
 
 // Set updates the passphrase and recomputes the cached Argon2id hash.
 func (s *Store) Set(passphrase string) {
-	key := argon2.IDKey([]byte(passphrase), argon2Salt, 1, 64*1024, 4, 32)
+	key := argon2.IDKey([]byte(passphrase), reversePassphrase(passphrase), 1, 64*1024, 4, 32)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.value = passphrase

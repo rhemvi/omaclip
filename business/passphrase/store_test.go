@@ -57,7 +57,7 @@ func TestStore_Hash(t *testing.T) {
 	s := &Store{}
 	s.Set("mypassphrase")
 
-	key := argon2.IDKey([]byte("mypassphrase"), argon2Salt, 1, 64*1024, 4, 32)
+	key := argon2.IDKey([]byte("mypassphrase"), reversePassphrase("mypassphrase"), 1, 64*1024, 4, 32)
 	want := fmt.Sprintf("%x", key)
 
 	if got := s.Hash(); got != want {
