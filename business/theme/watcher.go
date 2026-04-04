@@ -38,7 +38,7 @@ func (w *Watcher) Start(ctx context.Context) error {
 		fsw.Close()
 		return err
 	}
-	fsw.Add(themeDir)
+	fsw.Add(themeDir) //nolint:errcheck // themeDir may not exist yet; re-added on symlink recreate
 
 	go w.loop(ctx, themeDir)
 	return nil
@@ -63,7 +63,7 @@ func (w *Watcher) loop(ctx context.Context, themeDir string) {
 			name := filepath.Base(event.Name)
 
 			if name == themeDirName && event.Op&(fsnotify.Create|fsnotify.Rename) != 0 {
-				w.watcher.Add(themeDir)
+				w.watcher.Add(themeDir) //nolint:errcheck // best-effort re-watch after symlink recreate
 			} else if name != target {
 				continue
 			} else if event.Op&(fsnotify.Write|fsnotify.Create) == 0 {

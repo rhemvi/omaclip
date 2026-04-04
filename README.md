@@ -30,7 +30,7 @@ The install script detects your OS, architecture, and package manager,
 installs the required dependencies, and places the binary in `/usr/local/bin`.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ntavelis/clipmaster/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ntavelis/clipmaster/master/install.sh | sh
 ```
 
 ### Option 2 — Manual installation
