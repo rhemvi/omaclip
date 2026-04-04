@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { GetRemoteClipboards, CopyRemoteItem } from '../../wailsjs/go/app/App'
+import { GetRemoteClipboards, CopyRemoteItem, CopyRemoteImage } from '../../wailsjs/go/app/App'
 import { useNavigation } from './navigation'
 
 export const useRemoteStore = defineStore('remote', () => {
@@ -28,7 +28,11 @@ export const useRemoteStore = defineStore('remote', () => {
     const entry = flatEntries.value.find(e => e.id === id)
     if (!entry) return
     lastCopiedId.value = id
-    await CopyRemoteItem(entry.content)
+    if (entry.contentType === 'image') {
+      await CopyRemoteImage(entry.imageData)
+    } else {
+      await CopyRemoteItem(entry.content)
+    }
     setTimeout(() => { lastCopiedId.value = null }, 1000)
   }
 

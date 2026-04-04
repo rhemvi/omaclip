@@ -5,8 +5,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -147,8 +149,8 @@ func sameEntryIDs(a, b []clipboard.ClipboardEntry) bool {
 }
 
 func (f *Fetcher) fetchPeer(p fmdns.Peer) ([]clipboard.ClipboardEntry, error) {
-	url := fmt.Sprintf("https://%s:%d/api/clipboard", p.Addr, p.Port)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	baseURL := fmt.Sprintf("https://%s:%d", p.Addr, p.Port)
+	req, err := http.NewRequest(http.MethodGet, baseURL+"/api/clipboard", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -164,5 +166,37 @@ func (f *Fetcher) fetchPeer(p fmdns.Peer) ([]clipboard.ClipboardEntry, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
+
+	for i, e := range entries {
+		if e.ContentType != "image" {
+			continue
+		}
+		imgData, err := f.fetchPeerImage(baseURL, e.ID)
+		if err != nil {
+			f.log.Debug("failed to fetch peer image", "peer", p.Name, "id", e.ID, "error", err)
+			continue
+		}
+		entries[i].ImageData = base64.StdEncoding.EncodeToString(imgData)
+	}
+
 	return entries, nil
+}
+
+func (f *Fetcher) fetchPeerImage(baseURL, id string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, baseURL+"/api/clipboard/"+id+"/image", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Clipmaster-Pass", f.passphraseStore.Hash())
+
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
 }

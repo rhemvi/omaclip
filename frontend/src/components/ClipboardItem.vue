@@ -48,12 +48,16 @@ watch(() => props.keyboardActive, (val) => {
 })
 
 function checkOverflow() {
-  if (!textRef.value) return
+  if (!textRef.value || props.entry.contentType === 'image') return
   isOverflowing.value = textRef.value.scrollWidth > textRef.value.clientWidth
 }
 
 onMounted(() => {
-  nextTick(checkOverflow)
+  if (props.entry.contentType === 'image') {
+    isOverflowing.value = true
+  } else {
+    nextTick(checkOverflow)
+  }
   window.addEventListener('resize', checkOverflow)
 })
 
@@ -98,7 +102,11 @@ function formatTime(timestamp) {
     <span class="shrink-0 w-3 text-[10px] leading-4 text-color2 text-center">{{ index < 9 ? index + 1 : '·' }}</span>
 
         <div class="flex-1 min-w-0">
-          <p ref="textRef" class="text-sm text-foreground"
+          <img v-if="entry.contentType === 'image'"
+            :src="'data:image/png;base64,' + entry.imageData"
+            :class="expanded ? 'max-h-64' : 'max-h-16'"
+            class="max-w-full rounded object-contain" />
+          <p v-else ref="textRef" class="text-sm text-foreground"
             :class="expanded ? 'whitespace-pre-wrap break-all' : 'truncate'">{{ entry.content }}</p>
         </div>
 
@@ -132,7 +140,7 @@ function formatTime(timestamp) {
         <Teleport to="body">
           <span v-if="hovered" :style="tooltipStyle"
             class="pointer-events-none z-50 whitespace-nowrap rounded bg-color0 px-2 py-1 text-xs text-foreground">
-            {{ copied ? 'Copied!' : 'Click to copy' }}
+            {{ copied ? 'Copied!' : entry.contentType === 'image' ? 'Click to copy image' : 'Click to copy' }}
           </span>
         </Teleport>
   </div>

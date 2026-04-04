@@ -3,19 +3,26 @@ package clipboard
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
 )
 
+const maxImageBytes = 5 * 1024 * 1024
+
 // Reader abstracts clipboard reading so different implementations can be swapped in.
 type Reader interface {
 	GetText() (string, error)
+	GetImage() ([]byte, error)
 }
 
 // Writer abstracts clipboard writing so different implementations can be swapped in.
 type Writer interface {
 	SetText(text string) error
+	SetImage(pngData []byte) error
 }
 
 // Monitor polls the system clipboard and maintains an in-memory history.
@@ -25,6 +32,7 @@ type Monitor struct {
 	maxHistory   int
 	pollInterval time.Duration
 	lastSeen     string
+	lastSeenHash string
 	cancel       context.CancelFunc
 	reader       Reader
 	writer       Writer
@@ -66,6 +74,19 @@ func (m *Monitor) GetHistory() []ClipboardEntry {
 	return result
 }
 
+// GetEntry returns a single entry by ID.
+func (m *Monitor) GetEntry(id string) (ClipboardEntry, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, entry := range m.history {
+		if entry.ID == id {
+			return entry, true
+		}
+	}
+	return ClipboardEntry{}, false
+}
+
 // CopyItem writes the entry with the given ID back to the system clipboard.
 func (m *Monitor) CopyItem(id string) error {
 	m.mu.Lock()
@@ -73,10 +94,23 @@ func (m *Monitor) CopyItem(id string) error {
 
 	for _, entry := range m.history {
 		if entry.ID == id {
+			if entry.ContentType == "image" {
+				imgBytes, err := base64.StdEncoding.DecodeString(entry.ImageData)
+				if err != nil {
+					return fmt.Errorf("decoding image data: %w", err)
+				}
+				if err := m.writer.SetImage(imgBytes); err != nil {
+					return err
+				}
+				m.lastSeenHash = sha256Hex(imgBytes)
+				m.lastSeen = ""
+				return nil
+			}
 			if err := m.writer.SetText(entry.Content); err != nil {
 				return err
 			}
 			m.lastSeen = entry.Content
+			m.lastSeenHash = ""
 			return nil
 		}
 	}
@@ -94,6 +128,22 @@ func (m *Monitor) CopyText(text string) error {
 	return nil
 }
 
+// CopyImage writes base64-encoded PNG data to the system clipboard without adding it to history.
+func (m *Monitor) CopyImage(imageDataBase64 string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	imgBytes, err := base64.StdEncoding.DecodeString(imageDataBase64)
+	if err != nil {
+		return fmt.Errorf("decoding image data: %w", err)
+	}
+	if err := m.writer.SetImage(imgBytes); err != nil {
+		return err
+	}
+	m.lastSeenHash = sha256Hex(imgBytes)
+	m.lastSeen = ""
+	return nil
+}
+
 // poll runs the clipboard polling loop until ctx is cancelled.
 func (m *Monitor) poll(ctx context.Context) {
 	ticker := time.NewTicker(m.pollInterval)
@@ -105,24 +155,41 @@ func (m *Monitor) poll(ctx context.Context) {
 			return
 		case <-ticker.C:
 			text, err := m.reader.GetText()
-			if err != nil || text == "" || text == m.lastSeen {
+			if err == nil && text != "" && text != m.lastSeen {
+				m.lastSeen = text
+				m.lastSeenHash = ""
+				m.addEntry(ClipboardEntry{
+					ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
+					Content:     text,
+					ContentType: "text",
+					Timestamp:   time.Now(),
+				})
 				continue
 			}
-			m.lastSeen = text
-			m.addEntry(text)
+
+			imgData, err := m.reader.GetImage()
+			if err != nil || len(imgData) == 0 || len(imgData) > maxImageBytes {
+				continue
+			}
+			hash := sha256Hex(imgData)
+			if hash == m.lastSeenHash {
+				continue
+			}
+			m.lastSeenHash = hash
+			m.lastSeen = ""
+			m.addEntry(ClipboardEntry{
+				ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
+				ContentType: "image",
+				ImageData:   base64.StdEncoding.EncodeToString(imgData),
+				Timestamp:   time.Now(),
+			})
 		}
 	}
 }
 
 // addEntry appends a new entry to history, trimming to maxHistory, then notifies the callback.
-func (m *Monitor) addEntry(content string) {
+func (m *Monitor) addEntry(entry ClipboardEntry) {
 	m.mu.Lock()
-
-	entry := ClipboardEntry{
-		ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
-		Content:   content,
-		Timestamp: time.Now(),
-	}
 
 	m.history = append(m.history, entry)
 	if len(m.history) > m.maxHistory {
@@ -135,4 +202,9 @@ func (m *Monitor) addEntry(content string) {
 	if cb != nil {
 		cb(entry)
 	}
+}
+
+func sha256Hex(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
 }

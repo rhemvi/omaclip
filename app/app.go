@@ -62,13 +62,12 @@ func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.log.Info("starting application")
 
-	writter := clipboard.GenericClipboard{Ctx: ctx}
-	reader, err := osclip.NewReader()
+	reader, writer, err := osclip.NewReaderWriter()
 	if err != nil {
 		a.log.Error("clipboard unavailable", "error", err)
 		os.Exit(1)
 	}
-	a.monitor = clipboard.NewMonitor(reader, writter, a.cfg.MaxHistory, a.cfg.PollInterval)
+	a.monitor = clipboard.NewMonitor(reader, writer, a.cfg.MaxHistory, a.cfg.PollInterval)
 
 	if areWeRunningInOmarchy(a.cfg.ThemeColorPath) {
 		colors, err := theme.Load(a.cfg.ThemeColorPath)
@@ -136,6 +135,11 @@ func (a *App) GetRemoteClipboards() []peersclipsync.PeerClipboard {
 // CopyRemoteItem writes the given text directly to the system clipboard.
 func (a *App) CopyRemoteItem(content string) error {
 	return a.monitor.CopyText(content)
+}
+
+// CopyRemoteImage writes base64-encoded PNG data to the system clipboard as an image.
+func (a *App) CopyRemoteImage(imageDataBase64 string) error {
+	return a.monitor.CopyImage(imageDataBase64)
 }
 
 // GetTheme returns the currently loaded theme colors.

@@ -3,6 +3,8 @@ export namespace clipboard {
 	export class ClipboardEntry {
 	    id: string;
 	    content: string;
+	    contentType: string;
+	    imageData?: string;
 	    // Go type: time
 	    timestamp: any;
 	
@@ -14,6 +16,8 @@ export namespace clipboard {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.content = source["content"];
+	        this.contentType = source["contentType"];
+	        this.imageData = source["imageData"];
 	        this.timestamp = this.convertValues(source["timestamp"], null);
 	    }
 	

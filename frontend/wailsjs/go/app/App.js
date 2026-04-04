@@ -6,6 +6,10 @@ export function CopyItem(arg1) {
   return window['go']['app']['App']['CopyItem'](arg1);
 }
 
+export function CopyRemoteImage(arg1) {
+  return window['go']['app']['App']['CopyRemoteImage'](arg1);
+}
+
 export function CopyRemoteItem(arg1) {
   return window['go']['app']['App']['CopyRemoteItem'](arg1);
 }

@@ -6,6 +6,8 @@ import {theme} from '../models';
 
 export function CopyItem(arg1:string):Promise<void>;
 
+export function CopyRemoteImage(arg1:string):Promise<void>;
+
 export function CopyRemoteItem(arg1:string):Promise<void>;
 
 export function GetHistory():Promise<Array<clipboard.ClipboardEntry>>;
