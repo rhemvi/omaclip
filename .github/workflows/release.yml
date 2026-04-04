@@ -189,25 +189,26 @@ jobs:
         with:
           path: dist
 
-      - name: Rename binaries
+      - name: Flatten artifacts
         run: |
-          mv dist/clipmaster-linux-amd64/clipmaster       dist/clipmaster-linux-amd64
-          mv dist/clipmaster-linux-arm64/clipmaster       dist/clipmaster-linux-arm64
-          mv dist/clipmaster-darwin-amd64-bin/clipmaster  dist/clipmaster-darwin-amd64
-          mv dist/clipmaster-darwin-arm64-bin/clipmaster  dist/clipmaster-darwin-arm64
-          mv dist/clipmaster-darwin-amd64-app/clipmaster-darwin-amd64.zip dist/clipmaster-darwin-amd64.zip
-          mv dist/clipmaster-darwin-arm64-app/clipmaster-darwin-arm64.zip dist/clipmaster-darwin-arm64.zip
-          chmod +x dist/clipmaster-linux-amd64 dist/clipmaster-linux-arm64 \
-                    dist/clipmaster-darwin-amd64 dist/clipmaster-darwin-arm64
+          mkdir -p dist/out
+          cp dist/clipmaster-linux-amd64/clipmaster       dist/out/clipmaster-linux-amd64
+          cp dist/clipmaster-linux-arm64/clipmaster       dist/out/clipmaster-linux-arm64
+          cp dist/clipmaster-darwin-amd64-bin/clipmaster  dist/out/clipmaster-darwin-amd64
+          cp dist/clipmaster-darwin-arm64-bin/clipmaster  dist/out/clipmaster-darwin-arm64
+          cp dist/clipmaster-darwin-amd64-app/clipmaster-darwin-amd64.zip dist/out/clipmaster-darwin-amd64.zip
+          cp dist/clipmaster-darwin-arm64-app/clipmaster-darwin-arm64.zip dist/out/clipmaster-darwin-arm64.zip
+          chmod +x dist/out/clipmaster-linux-amd64 dist/out/clipmaster-linux-arm64 \
+                    dist/out/clipmaster-darwin-amd64 dist/out/clipmaster-darwin-arm64
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/clipmaster-linux-amd64
-            dist/clipmaster-linux-arm64
-            dist/clipmaster-darwin-amd64
-            dist/clipmaster-darwin-arm64
-            dist/clipmaster-darwin-amd64.zip
-            dist/clipmaster-darwin-arm64.zip
+            dist/out/clipmaster-linux-amd64
+            dist/out/clipmaster-linux-arm64
+            dist/out/clipmaster-darwin-amd64
+            dist/out/clipmaster-darwin-arm64
+            dist/out/clipmaster-darwin-amd64.zip
+            dist/out/clipmaster-darwin-arm64.zip
             build/appicon.png
