@@ -71,7 +71,7 @@ install_deps_linux() {
     sudo apk add --no-cache gtk+3.0 webkit2gtk ${CLIP_PKGS}
   elif command -v rpm-ostree &>/dev/null; then
     echo "Installing dependencies via rpm-ostree (Fedora Atomic)..."
-    sudo rpm-ostree install --idempotent --apply-live gtk3 webkit2gtk3 ${CLIP_PKGS}
+    sudo rpm-ostree install --idempotent --allow-inactive --apply-live gtk3 webkit2gtk3 ${CLIP_PKGS}
   elif command -v dnf &>/dev/null; then
     echo "Installing dependencies via dnf..."
     sudo dnf install -y gtk3 webkit2gtk3 ${CLIP_PKGS}
