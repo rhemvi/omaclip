@@ -97,7 +97,7 @@ function formatTime(timestamp) {
 <template>
   <div ref="rowRef"
     class="group relative flex items-start gap-3 px-4 py-3 border-b border-color8 cursor-pointer transition-colors"
-    :class="[selected ? 'bg-color8/50' : '', keyboardActive ? '' : 'hover:bg-color8/50']" @click="handleCopy"
+    :class="[selected ? 'bg-color8/50' : '', keyboardActive ? '' : 'hover:bg-color8/50']" @click="handleCopy" @contextmenu.prevent="emit('toggle-expand')"
     @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
     <span class="shrink-0 w-3 text-[10px] leading-4 text-color2 text-center">{{ index < 9 ? index + 1 : '·' }}</span>
 
@@ -140,7 +140,7 @@ function formatTime(timestamp) {
         <Teleport to="body">
           <span v-if="hovered" :style="tooltipStyle"
             class="pointer-events-none z-50 whitespace-nowrap rounded bg-color0 px-2 py-1 text-xs text-foreground">
-            {{ copied ? 'Copied!' : entry.contentType === 'image' ? 'Click to copy image' : 'Click to copy' }}
+            {{ copied ? 'Copied!' : 'Click to copy' }}
           </span>
         </Teleport>
   </div>

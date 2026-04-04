@@ -24,8 +24,7 @@ const allShortcuts = [
   { keys: 'Space', action: 'Expand / collapse selected' },
   { keys: 'Escape', action: 'Collapse all / clear selection' },
   { keys: 'Ctrl+1..9', action: 'Quick copy Nth item' },
-  { keys: '[', action: 'Clipboard tab', remoteOnly: true },
-  { keys: ']', action: 'Remote tab', remoteOnly: true },
+  { keys: ['[', ']'], action: 'Navigate tabs', remoteOnly: true },
   { keys: 'Ctrl+K', action: 'Toggle this panel' },
 ]
 const shortcuts = computed(() => allShortcuts.filter(s => !s.remoteOnly || remoteEnabled.value))
@@ -118,7 +117,7 @@ onUnmounted(() => {
   <div v-else class="min-h-screen bg-background text-foreground font-mono flex flex-col">
     <div class="flex border-b border-color8">
       <button
-        class="px-4 py-2.5 text-xs font-semibold tracking-widest uppercase transition-colors border-b-2"
+        class="px-4 py-2.5 text-xs font-semibold tracking-widest uppercase transition-colors border-b-2 cursor-pointer"
         :class="clipboard.activeTab === 'local' ? 'text-accent border-accent' : 'text-color7 border-transparent hover:text-foreground'"
         @click="clipboard.activeTab = 'local'"
         @mousedown.prevent
@@ -127,7 +126,7 @@ onUnmounted(() => {
       </button>
       <button
         v-if="remoteEnabled"
-        class="px-4 py-2.5 text-xs font-semibold tracking-widest uppercase transition-colors border-b-2"
+        class="px-4 py-2.5 text-xs font-semibold tracking-widest uppercase transition-colors border-b-2 cursor-pointer"
         :class="clipboard.activeTab === 'remote' ? 'text-accent border-accent' : 'text-color7 border-transparent hover:text-foreground'"
         @click="clipboard.activeTab = 'remote'"
         @mousedown.prevent
@@ -175,7 +174,12 @@ onUnmounted(() => {
           <div class="space-y-2">
             <div v-for="s in shortcuts" :key="s.keys" class="flex items-center justify-between">
               <span class="text-xs text-foreground">{{ s.action }}</span>
-              <kbd class="rounded bg-color8 px-1.5 py-0.5 text-[10px] text-color7">{{ s.keys }}</kbd>
+              <span class="flex gap-1">
+                <template v-if="Array.isArray(s.keys)">
+                  <kbd v-for="k in s.keys" :key="k" class="rounded bg-color8 px-1.5 py-0.5 text-[10px] text-color7">{{ k }}</kbd>
+                </template>
+                <kbd v-else class="rounded bg-color8 px-1.5 py-0.5 text-[10px] text-color7">{{ s.keys }}</kbd>
+              </span>
             </div>
           </div>
           <p class="mt-3 text-center text-[10px] text-color7">Press Ctrl+K or click outside to close</p>
