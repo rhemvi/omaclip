@@ -4,7 +4,7 @@ A desktop clipboard manager for Linux and macOS. It tracks your clipboard's
 history, lets you browse and re-copy past items, and is designed for
 keyboard-first workflows.
 
-<video src=".docs/clipmaster.mp4" controls width="100%"></video>
+https://github.com/user-attachments/assets/434b6ff6-21e1-459b-833f-7f63c5a9ee88
 
 Run it on multiple machines and they form a secure mesh — peers auto-discover
 each other on the local network, no configuration needed. Every machine stays
