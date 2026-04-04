@@ -1,26 +1,24 @@
 # Clipmaster
 
-A desktop clipboard manager for Linux and macOS. It tracks your clipboard's
-history, lets you browse and re-copy past items, and is designed for
+A desktop clipboard manager for Omarchy, works in Linux and macOS. It tracks your
+clipboard's history, lets you browse and copy items, that is designed for
 keyboard-first workflows.
 
-https://github.com/user-attachments/assets/434b6ff6-21e1-459b-833f-7f63c5a9ee88
+<https://github.com/user-attachments/assets/434b6ff6-21e1-459b-833f-7f63c5a9ee88>
 
-Run it on multiple machines and they form a secure mesh — peers auto-discover
-each other on the local network, no configuration needed. Every machine stays
-in sync, and your clipboard is always where you need it.
+When you run it on multiple machines they will form a secure mesh, where peers auto-discover
+each other on the local network and share their clipboards.
 
-It works on Linux and macOS, but it loves [Omarchy](https://omarchy.org) —
-hot-reloading its color scheme the moment your OS theme changes, so it always
-looks like it belongs.
+It works on Linux and macOS, but it loves [Omarchy](https://omarchy.org),
+hot-reloading its color scheme the moment your OS theme changes.
 
-- In-memory clipboard history — text and images (PNG), up to 50 items
+- In-memory clipboard history text and images (PNG), up to 50 items
   (configurable)
 - Keyboard navigation with shortcuts for quick copying (Ctrl+1..9)
 - Expandable entries for viewing long text or larger image previews
-- Live Omarchy theme support — colors update automatically when you switch
+- Live Omarchy theme support, colors update automatically when you switch
   themes
-- Secure multi-machine sync — peers discover each other via mDNS and sync
+- Secure multi-machine sync, peers discover each other via mDNS and sync
   over HTTPS with certificate validation and a shared passphrase; only
   machines with the same passphrase can connect
 
@@ -79,7 +77,7 @@ sudo install -m 755 clipmaster /usr/local/bin/clipmaster
 
 #### macOS
 
-No extra dependencies needed — macOS ships with WebKit.
+No extra dependencies needed, macOS already ships with WebKit.
 
 ```bash
 # Intel
@@ -97,12 +95,12 @@ To run in live development mode, run `wails dev` in the project directory.
 This will run a Vite development server that will provide very fast hot reload
 of your frontend changes. If you want to develop in a browser and have access
 to your Go methods, there is also a dev server that runs on
-http://localhost:34115. Connect to this in your browser, and you can call your
+<http://localhost:34115>. Connect to this in your browser, and you can call your
 Go code from devtools.
 
 ## Building
 
-To build a redistributable, production mode package, run:
+To build a redistributable, production ready package, run:
 
 ```bash
 task app:build
