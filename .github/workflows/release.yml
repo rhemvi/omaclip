@@ -1,0 +1,211 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-linux-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+      - name: Install Linux dependencies
+        run: |
+          echo "deb http://archive.ubuntu.com/ubuntu jammy main universe" | sudo tee /etc/apt/sources.list.d/jammy.list
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev \
+            pkg-config
+
+      - name: Build
+        run: |
+          REVISION=$(git rev-parse HEAD)
+          MODIFIED=$(git diff --quiet && echo false || echo true)
+          wails build -platform linux/amd64 -ldflags "-X clipmaster/foundation/vcs.Revision=${REVISION} -X clipmaster/foundation/vcs.Modified=${MODIFIED}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: clipmaster-linux-amd64
+          path: build/bin/clipmaster
+
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+      - name: Install Linux dependencies
+        run: |
+          echo "deb http://archive.ubuntu.com/ubuntu jammy main universe" | sudo tee /etc/apt/sources.list.d/jammy.list
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev \
+            pkg-config
+
+      - name: Build
+        run: |
+          REVISION=$(git rev-parse HEAD)
+          MODIFIED=$(git diff --quiet && echo false || echo true)
+          wails build -platform linux/arm64 -ldflags "-X clipmaster/foundation/vcs.Revision=${REVISION} -X clipmaster/foundation/vcs.Modified=${MODIFIED}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: clipmaster-linux-arm64
+          path: build/bin/clipmaster
+
+  build-darwin-amd64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+      - name: Build
+        run: |
+          REVISION=$(git rev-parse HEAD)
+          MODIFIED=$(git diff --quiet && echo false || echo true)
+          wails build -platform darwin/amd64 -ldflags "-X clipmaster/foundation/vcs.Revision=${REVISION} -X clipmaster/foundation/vcs.Modified=${MODIFIED}"
+
+      - name: Zip .app bundle
+        run: cd build/bin && zip -r clipmaster-darwin-amd64.zip clipmaster.app
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: clipmaster-darwin-amd64-bin
+          path: build/bin/clipmaster.app/Contents/MacOS/clipmaster
+
+      - name: Upload .app artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: clipmaster-darwin-amd64-app
+          path: build/bin/clipmaster-darwin-amd64.zip
+
+  build-darwin-arm64:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+      - name: Build
+        run: |
+          REVISION=$(git rev-parse HEAD)
+          MODIFIED=$(git diff --quiet && echo false || echo true)
+          wails build -platform darwin/arm64 -ldflags "-X clipmaster/foundation/vcs.Revision=${REVISION} -X clipmaster/foundation/vcs.Modified=${MODIFIED}"
+
+      - name: Zip .app bundle
+        run: cd build/bin && zip -r clipmaster-darwin-arm64.zip clipmaster.app
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: clipmaster-darwin-arm64-bin
+          path: build/bin/clipmaster.app/Contents/MacOS/clipmaster
+
+      - name: Upload .app artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: clipmaster-darwin-arm64-app
+          path: build/bin/clipmaster-darwin-arm64.zip
+
+  release:
+    needs:
+      - build-linux-amd64
+      - build-linux-arm64
+      - build-darwin-amd64
+      - build-darwin-arm64
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Rename binaries
+        run: |
+          mv dist/clipmaster-linux-amd64/clipmaster       dist/clipmaster-linux-amd64
+          mv dist/clipmaster-linux-arm64/clipmaster       dist/clipmaster-linux-arm64
+          mv dist/clipmaster-darwin-amd64-bin/clipmaster  dist/clipmaster-darwin-amd64
+          mv dist/clipmaster-darwin-arm64-bin/clipmaster  dist/clipmaster-darwin-arm64
+          mv dist/clipmaster-darwin-amd64-app/clipmaster-darwin-amd64.zip dist/clipmaster-darwin-amd64.zip
+          mv dist/clipmaster-darwin-arm64-app/clipmaster-darwin-arm64.zip dist/clipmaster-darwin-arm64.zip
+          chmod +x dist/clipmaster-linux-amd64 dist/clipmaster-linux-arm64 \
+                    dist/clipmaster-darwin-amd64 dist/clipmaster-darwin-arm64
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/clipmaster-linux-amd64
+            dist/clipmaster-linux-arm64
+            dist/clipmaster-darwin-amd64
+            dist/clipmaster-darwin-arm64
+            dist/clipmaster-darwin-amd64.zip
+            dist/clipmaster-darwin-arm64.zip
+            build/appicon.png

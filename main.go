@@ -32,7 +32,7 @@ type appConfig struct {
 		PollInterval time.Duration `conf:"default:500ms,help:how often to poll the system clipboard for changes"`
 	}
 	RemoteClipboards struct {
-		MaxHistory   int           `conf:"default:3,help:maximum number of remote clipboard entries to keep per peer"`
+		MaxHistory   int           `conf:"default:5,help:maximum number of local clipboard entries to transmit to remote peers"`
 		PollInterval time.Duration `conf:"default:1s,help:how often to fetch clipboard entries from remote peers"`
 		Disable      bool          `conf:"default:false,help:disable fetching clipboards from remote peers"`
 	}

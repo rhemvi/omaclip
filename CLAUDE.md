@@ -84,7 +84,7 @@ All configurable via environment variables (`CLIPMASTER_<FLAG>`) or command-line
 | `CLIPMASTER_DEBUG` | `false` | Enable debug-level logging |
 | `CLIPMASTER_CLIPBOARD_MAX_HISTORY` | `50` | Max local clipboard entries |
 | `CLIPMASTER_CLIPBOARD_POLL_INTERVAL` | `500ms` | Local clipboard poll frequency |
-| `CLIPMASTER_REMOTE_CLIPBOARDS_MAX_HISTORY` | `3` | Max remote entries shown per peer |
+| `CLIPMASTER_REMOTE_CLIPBOARDS_MAX_HISTORY` | `5` | Max local entries transmitted to remote peers |
 | `CLIPMASTER_REMOTE_CLIPBOARDS_POLL_INTERVAL` | `1s` | Peer fetch frequency |
 | `CLIPMASTER_REMOTE_CLIPBOARDS_DISABLE` | `false` | Disable remote sync entirely |
 | `CLIPMASTER_PEERS_POLL_INTERVAL` | `2s` | mDNS browse frequency |
