@@ -38,7 +38,7 @@ jobs:
           version: v2.11.4
 
   build-amd64:
-    # TODO: restore to: if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule'
     needs: [test, lint]
     runs-on: ubuntu-latest
     steps:
