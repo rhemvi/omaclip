@@ -32,26 +32,61 @@ esac
 
 echo "Detected: ${OS}/${ARCH}"
 
+# Detect clipboard backend
+detect_clipboard_pkg() {
+  if [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+    echo "wayland"
+  elif [ "${XDG_SESSION_TYPE:-}" = "x11" ]; then
+    echo "x11"
+  elif [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    echo "wayland"
+  elif [ -n "${DISPLAY:-}" ]; then
+    echo "x11"
+  else
+    echo "both"
+  fi
+}
+
 # Install runtime dependencies (Linux only)
 install_deps_linux() {
+  local clip_backend
+  clip_backend="$(detect_clipboard_pkg)"
+
+  case "${clip_backend}" in
+    wayland) CLIP_PKGS="wl-clipboard" ;;
+    x11)     CLIP_PKGS="xclip" ;;
+    both)    CLIP_PKGS="wl-clipboard xclip" ;;
+  esac
+
+  echo "Detected display server: ${clip_backend}"
+
   if command -v apt-get &>/dev/null; then
     echo "Installing dependencies via apt..."
-    sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.0-37 wl-clipboard
+    sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.0-37 ${CLIP_PKGS}
   elif command -v pacman &>/dev/null; then
     echo "Installing dependencies via pacman..."
-    sudo pacman -S --needed --noconfirm gtk3 webkit2gtk wl-clipboard
+    sudo pacman -S --needed --noconfirm gtk3 webkit2gtk ${CLIP_PKGS}
+  elif command -v apk &>/dev/null; then
+    echo "Installing dependencies via apk (Alpine)..."
+    sudo apk add --no-cache gtk+3.0 webkit2gtk ${CLIP_PKGS}
+  elif command -v rpm-ostree &>/dev/null; then
+    echo "Installing dependencies via rpm-ostree (Fedora Atomic)..."
+    sudo rpm-ostree install --idempotent --apply-live gtk3 webkit2gtk3 ${CLIP_PKGS}
   elif command -v dnf &>/dev/null; then
     echo "Installing dependencies via dnf..."
-    sudo dnf install -y gtk3 webkit2gtk3 wl-clipboard
+    sudo dnf install -y gtk3 webkit2gtk3 ${CLIP_PKGS}
+  elif command -v xbps-install &>/dev/null; then
+    echo "Installing dependencies via xbps (Void Linux)..."
+    sudo xbps-install -Sy gtk+3 webkit2gtk ${CLIP_PKGS}
   elif command -v zypper &>/dev/null; then
     echo "Installing dependencies via zypper..."
-    sudo zypper install -y libgtk-3-0 libwebkit2gtk-4_0-37 wl-clipboard
+    sudo zypper install -y libgtk-3-0 libwebkit2gtk-4_0-37 ${CLIP_PKGS}
   else
-    echo "No supported package manager found (apt, pacman, dnf, zypper)."
+    echo "No supported package manager found (apt, pacman, apk, rpm-ostree, dnf, xbps, zypper)."
     echo "Please install the following libraries manually:"
     echo "  - GTK 3 runtime"
     echo "  - WebKit2GTK 4.0 runtime"
-    echo "  - wl-clipboard"
+    echo "  - A clipboard tool (wl-clipboard for Wayland, xclip for X11)"
     exit 1
   fi
 }
