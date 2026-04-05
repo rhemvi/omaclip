@@ -16,7 +16,7 @@ tasks:
     desc: Build the production binary with VCS info embedded
     vars:
       REVISION:
-        sh: git rev-parse HEAD
+        sh: git rev-parse --short HEAD
       MODIFIED:
         sh: git diff --quiet && echo false || echo true
     cmds:

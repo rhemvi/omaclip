@@ -14,37 +14,41 @@ import (
 var Revision string
 var Modified string
 
-func Version() string {
+func Version(appVersion string) string {
+	revision, dirty := resolveRevision()
+	if revision == "" {
+		return appVersion
+	}
+	if dirty {
+		return fmt.Sprintf("v%s+%s.dirty", appVersion, revision)
+	}
+	return fmt.Sprintf("v%s+%s", appVersion, revision)
+}
+
+func resolveRevision() (string, bool) {
 	if Revision != "" {
-		if Modified == "true" {
-			return fmt.Sprintf("%s_dirty", Revision)
-		}
-		return Revision
+		return Revision, Modified == "true"
 	}
 
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return "unknown"
+		return "", false
 	}
 
 	var revision string
 	var dirty bool
-
 	for _, s := range info.Settings {
 		switch s.Key {
 		case "vcs.revision":
-			revision = s.Value
+			if len(s.Value) > 7 {
+				revision = s.Value[:7]
+			} else {
+				revision = s.Value
+			}
 		case "vcs.modified":
 			dirty = s.Value == "true"
 		}
 	}
 
-	if revision == "" {
-		return "dev"
-	}
-
-	if dirty {
-		return fmt.Sprintf("%s_dirty", revision)
-	}
-	return revision
+	return revision, dirty
 }

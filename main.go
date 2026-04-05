@@ -23,6 +23,8 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+const appVersion = "0.0.3"
+
 type appConfig struct {
 	ThemeColorPath string `conf:"help:fullpath to the Omarchy theme colors.toml file (default: $HOME/.config/omarchy/current/theme/colors.toml)"`
 	ConfigPath     string `conf:"help:path to the clipmaster config file (default: $HOME/.config/clipmaster/config.json)"`
@@ -54,7 +56,7 @@ func run() error {
 		ThemeColorPath: filepath.Join(os.Getenv("HOME"), ".config/omarchy/current/theme/colors.toml"),
 		ConfigPath:     filepath.Join(os.Getenv("HOME"), ".config/clipmaster/config.json"),
 	}
-	cfg.Build = vcs.Version()
+	cfg.Build = vcs.Version(appVersion)
 
 	help, err := conf.Parse("CLIPMASTER", &cfg)
 	if errors.Is(err, conf.ErrHelpWanted) || errors.Is(err, conf.ErrVersionWanted) {

@@ -69,7 +69,7 @@ jobs:
 
       - name: Build
         run: |
-          REVISION=$(git rev-parse HEAD)
+          REVISION=$(git rev-parse --short HEAD)
           MODIFIED=$(git diff --quiet && echo false || echo true)
           wails build -tags webkit2_41 -platform linux/amd64 -ldflags "-X clipmaster/foundation/vcs.Revision=${REVISION} -X clipmaster/foundation/vcs.Modified=${MODIFIED}"
 
