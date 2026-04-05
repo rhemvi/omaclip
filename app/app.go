@@ -62,11 +62,12 @@ func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.log.Info("starting application")
 
-	reader, writer, err := osclip.NewReaderWriter()
+	reader, writer, backend, err := osclip.NewReaderWriter()
 	if err != nil {
 		a.log.Error("clipboard unavailable", "error", err)
 		os.Exit(1)
 	}
+	a.log.Info("clipboard backend selected", "backend", backend)
 	a.monitor = clipboard.NewMonitor(a.log, reader, writer, a.cfg.MaxHistory, a.cfg.PollInterval)
 
 	if areWeRunningInOmarchy(a.cfg.ThemeColorPath) {

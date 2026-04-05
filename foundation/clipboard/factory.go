@@ -24,26 +24,27 @@ type Writer interface {
 
 // NewReaderWriter returns the first available clipboard reader and writer by probing known binaries in order:
 // wl-paste (Wayland) → xclip (X11) → xsel (X11) → pbpaste (macOS).
-func NewReaderWriter() (Reader, Writer, error) {
+// The returned string identifies the selected backend.
+func NewReaderWriter() (Reader, Writer, string, error) {
 	switch {
 	case available("wl-paste"):
 		w := WaylandClipboard{}
-		return w, w, nil
+		return w, w, "wayland (wl-paste)", nil
 	case available("xclip"):
 		x := XclipClipboard{}
-		return x, x, nil
+		return x, x, "x11 (xclip)", nil
 	case available("xsel"):
 		s := XselClipboard{}
-		return s, s, nil
+		return s, s, "x11 (xsel)", nil
 	case available("pbpaste"):
 		if available("osascript") {
 			o := DarwinOsascriptClipboard{}
-			return o, o, nil
+			return o, o, "darwin (osascript)", nil
 		}
 		d := DarwinClipboard{}
-		return d, d, nil
+		return d, d, "darwin (pbpaste)", nil
 	default:
-		return nil, nil, ErrNoClipAvailable
+		return nil, nil, "", ErrNoClipAvailable
 	}
 }
 
