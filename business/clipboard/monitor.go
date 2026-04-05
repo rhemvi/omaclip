@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -25,9 +26,15 @@ type Writer interface {
 	SetImage(pngData []byte) error
 }
 
+// Watcher is optionally implemented by clipboard backends that support event-driven change notifications instead of polling.
+type Watcher interface {
+	Watch(ctx context.Context, notify chan<- struct{}) error
+}
+
 // Monitor polls the system clipboard and maintains an in-memory history.
 type Monitor struct {
 	mu           sync.RWMutex
+	log          *slog.Logger
 	history      []ClipboardEntry
 	maxHistory   int
 	pollInterval time.Duration
@@ -40,8 +47,9 @@ type Monitor struct {
 }
 
 // NewMonitor creates a Monitor with the given reader, writer, capacity, and poll interval.
-func NewMonitor(reader Reader, writer Writer, maxHistory int, pollInterval time.Duration) *Monitor {
+func NewMonitor(log *slog.Logger, reader Reader, writer Writer, maxHistory int, pollInterval time.Duration) *Monitor {
 	return &Monitor{
+		log:          log,
 		reader:       reader,
 		writer:       writer,
 		maxHistory:   maxHistory,
@@ -49,10 +57,21 @@ func NewMonitor(reader Reader, writer Writer, maxHistory int, pollInterval time.
 	}
 }
 
-// Start begins polling the clipboard in a background goroutine.
+// Start begins monitoring the clipboard in a background goroutine. If the reader implements Watcher and watching succeeds, event-driven watching is used; otherwise falls back to polling.
 func (m *Monitor) Start(ctx context.Context) {
 	ctx, m.cancel = context.WithCancel(ctx)
-	go m.poll(ctx)
+
+	var watchCh chan struct{}
+	if watcher, ok := m.reader.(Watcher); ok {
+		notify := make(chan struct{}, 1)
+		if err := watcher.Watch(ctx, notify); err != nil {
+			m.log.Warn("clipboard watcher failed, falling back to polling", "error", err)
+		} else {
+			watchCh = notify
+		}
+	}
+
+	go m.poll(ctx, watchCh)
 }
 
 // Stop halts the polling goroutine.
@@ -144,47 +163,59 @@ func (m *Monitor) CopyImage(imageDataBase64 string) error {
 	return nil
 }
 
-// poll runs the clipboard polling loop until ctx is cancelled.
-func (m *Monitor) poll(ctx context.Context) {
-	ticker := time.NewTicker(m.pollInterval)
-	defer ticker.Stop()
+// poll runs the clipboard monitoring loop until ctx is cancelled. If watchCh is non-nil, clipboard reads are triggered by watch events instead of a ticker.
+func (m *Monitor) poll(ctx context.Context, watchCh <-chan struct{}) {
+	var tickerCh <-chan time.Time
+	var ticker *time.Ticker
+	if watchCh == nil {
+		ticker = time.NewTicker(m.pollInterval)
+		tickerCh = ticker.C
+		defer ticker.Stop()
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			text, err := m.reader.GetText()
-			if err == nil && text != "" && text != m.lastSeen {
-				m.lastSeen = text
-				m.lastSeenHash = ""
-				m.addEntry(ClipboardEntry{
-					ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
-					Content:     text,
-					ContentType: "text",
-					Timestamp:   time.Now(),
-				})
-				continue
-			}
-
-			imgData, err := m.reader.GetImage()
-			if err != nil || len(imgData) == 0 || len(imgData) > maxImageBytes {
-				continue
-			}
-			hash := sha256Hex(imgData)
-			if hash == m.lastSeenHash {
-				continue
-			}
-			m.lastSeenHash = hash
-			m.lastSeen = ""
-			m.addEntry(ClipboardEntry{
-				ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
-				ContentType: "image",
-				ImageData:   base64.StdEncoding.EncodeToString(imgData),
-				Timestamp:   time.Now(),
-			})
+		case <-tickerCh:
+			m.readClipboard()
+		case <-watchCh:
+			m.readClipboard()
 		}
 	}
+}
+
+// readClipboard checks the system clipboard for new text or image content and adds it to history.
+func (m *Monitor) readClipboard() {
+	text, err := m.reader.GetText()
+	if err == nil && text != "" && text != m.lastSeen {
+		m.lastSeen = text
+		m.lastSeenHash = ""
+		m.addEntry(ClipboardEntry{
+			ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
+			Content:     text,
+			ContentType: "text",
+			Timestamp:   time.Now(),
+		})
+		return
+	}
+
+	imgData, err := m.reader.GetImage()
+	if err != nil || len(imgData) == 0 || len(imgData) > maxImageBytes {
+		return
+	}
+	hash := sha256Hex(imgData)
+	if hash == m.lastSeenHash {
+		return
+	}
+	m.lastSeenHash = hash
+	m.lastSeen = ""
+	m.addEntry(ClipboardEntry{
+		ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
+		ContentType: "image",
+		ImageData:   base64.StdEncoding.EncodeToString(imgData),
+		Timestamp:   time.Now(),
+	})
 }
 
 // addEntry appends a new entry to history, trimming to maxHistory, then notifies the callback.

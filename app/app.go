@@ -67,7 +67,7 @@ func (a *App) Startup(ctx context.Context) {
 		a.log.Error("clipboard unavailable", "error", err)
 		os.Exit(1)
 	}
-	a.monitor = clipboard.NewMonitor(reader, writer, a.cfg.MaxHistory, a.cfg.PollInterval)
+	a.monitor = clipboard.NewMonitor(a.log, reader, writer, a.cfg.MaxHistory, a.cfg.PollInterval)
 
 	if areWeRunningInOmarchy(a.cfg.ThemeColorPath) {
 		colors, err := theme.Load(a.cfg.ThemeColorPath)

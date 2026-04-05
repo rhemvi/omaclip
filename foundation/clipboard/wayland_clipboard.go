@@ -2,7 +2,9 @@
 package clipboard
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -78,6 +80,32 @@ func (w WaylandClipboard) SetText(text string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("wl-copy: %w", err)
 	}
+	return nil
+}
+
+// Watch starts wl-paste --watch and sends a signal on notify each time the clipboard changes. Returns an error if the process fails to start. The scan loop runs in a background goroutine until ctx is cancelled.
+func (w WaylandClipboard) Watch(ctx context.Context, notify chan<- struct{}) error {
+	cmd := exec.CommandContext(ctx, "wl-paste", "--watch", "echo")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("wl-paste --watch stdout pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("wl-paste --watch start: %w", err)
+	}
+
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			select {
+			case notify <- struct{}{}:
+			default:
+			}
+		}
+		_ = cmd.Wait()
+	}()
+
 	return nil
 }
 
