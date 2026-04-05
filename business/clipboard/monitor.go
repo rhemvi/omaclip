@@ -69,6 +69,8 @@ func (m *Monitor) Start(ctx context.Context) {
 		} else {
 			watchCh = notify
 		}
+	} else {
+		m.log.Warn("clipboard watch is not supported with this driver, falling back to polling")
 	}
 
 	go m.poll(ctx, watchCh)

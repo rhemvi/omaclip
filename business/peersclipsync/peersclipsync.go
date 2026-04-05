@@ -49,7 +49,13 @@ type Fetcher struct {
 // New creates a Fetcher. Call Start to begin periodic fetching.
 // caPool must contain the shared CA certificate derived from the passphrase so that
 // peer leaf certificates can be verified without InsecureSkipVerify.
-func New(log *slog.Logger, discoverer *fmdns.Discoverer, syncInterval time.Duration, ps *passphrase.Store, caPool *x509.CertPool) *Fetcher {
+func New(
+	log *slog.Logger,
+	discoverer *fmdns.Discoverer,
+	syncInterval time.Duration,
+	ps *passphrase.Store,
+	caPool *x509.CertPool,
+) *Fetcher {
 	return &Fetcher{
 		log:             log,
 		discoverer:      discoverer,
@@ -65,7 +71,7 @@ func New(log *slog.Logger, discoverer *fmdns.Discoverer, syncInterval time.Durat
 	}
 }
 
-// Start begins the 30s fetch loop until ctx is cancelled.
+// Start begins the a fetch loop until ctx is cancelled.
 func (f *Fetcher) Start(ctx context.Context) {
 	go f.loop(ctx)
 }
@@ -106,7 +112,7 @@ func (f *Fetcher) fetchAll() {
 	for _, p := range peers {
 		activePeers[p.Name] = struct{}{}
 	}
-
+	// remove any cached peers that are no longer active
 	f.mu.Lock()
 	for name := range f.cache {
 		if _, ok := activePeers[name]; !ok {
