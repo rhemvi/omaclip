@@ -29,6 +29,7 @@ type Config struct {
 	ThemeColorPath               string
 	ConfigPath                   string
 	PollInterval                 time.Duration
+	ForceXclip                   bool
 	RemoteClipboardsPollInterval time.Duration
 	RemoteClipboardsMaxHistory   int
 	PeersPollInterval            time.Duration
@@ -62,7 +63,7 @@ func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.log.Info("starting application")
 
-	reader, writer, backend, err := osclip.NewReaderWriter()
+	reader, writer, backend, err := osclip.NewReaderWriter(a.cfg.ForceXclip)
 	if err != nil {
 		a.log.Error("clipboard unavailable", "error", err)
 		os.Exit(1)

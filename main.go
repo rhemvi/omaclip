@@ -30,6 +30,7 @@ type appConfig struct {
 	Clipboard      struct {
 		MaxHistory   int           `conf:"default:50,help:maximum number of clipboard entries to keep in history"`
 		PollInterval time.Duration `conf:"default:500ms,help:how often to poll the system clipboard for changes"`
+		ForceXclip   bool          `conf:"default:false,help:force xclip backend instead of auto-detecting"`
 	}
 	RemoteClipboards struct {
 		MaxHistory   int           `conf:"default:5,help:maximum number of local clipboard entries to transmit to remote peers"`
@@ -82,6 +83,7 @@ func run() error {
 		ThemeColorPath:               cfg.ThemeColorPath,
 		ConfigPath:                   cfg.ConfigPath,
 		PollInterval:                 cfg.Clipboard.PollInterval,
+		ForceXclip:                   cfg.Clipboard.ForceXclip,
 		RemoteClipboardsPollInterval: cfg.RemoteClipboards.PollInterval,
 		RemoteClipboardsMaxHistory:   cfg.RemoteClipboards.MaxHistory,
 		PeersPollInterval:            cfg.Peers.PollInterval,
