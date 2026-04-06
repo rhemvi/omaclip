@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-04-06
+
+### Changed
+
+- Renamed all internal references from `clipmaster` to `omaclip` (env vars, config path, mDNS service type, HTTP headers)
+- Updated GitHub repository URL to `rhemvi/omaclip`
+
 ## [0.0.6] - 2026-04-06
 
 ### Changed
