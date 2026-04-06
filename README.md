@@ -2,7 +2,7 @@
 
 A desktop clipboard manager for Omarchy, works in Linux and macOS. It tracks your
 clipboard's history, lets you browse and copy items and is designed for a
-keyboard-first workflows.
+keyboard-first workflow.
 
 <https://github.com/user-attachments/assets/434b6ff6-21e1-459b-833f-7f63c5a9ee88>
 
