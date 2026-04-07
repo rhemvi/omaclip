@@ -38,11 +38,17 @@ tasks:
     cmds:
       - golangci-lint run ./...
 
+  aur:clean:
+    desc: Remove downloaded omaclip-linux-* binaries from build/aur
+    dir: build/aur
+    cmds:
+      - rm -f omaclip-linux-*
+
   aur:checksums:
     desc: Regenerate checksums and .SRCINFO for the AUR omaclip-bin package
     dir: build/aur
+    deps: [aur:clean]
     cmds:
-      - rm -f omaclip-linux-amd64 omaclip-linux-arm64
       - updpkgsums
       - makepkg --printsrcinfo > .SRCINFO
 
