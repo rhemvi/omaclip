@@ -42,6 +42,7 @@ tasks:
     desc: Regenerate checksums and .SRCINFO for the AUR omaclip-bin package
     dir: build/aur
     cmds:
+      - rm -f omaclip-linux-amd64 omaclip-linux-arm64
       - updpkgsums
       - makepkg --printsrcinfo > .SRCINFO
 
