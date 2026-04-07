@@ -65,10 +65,10 @@ install_deps_linux() {
     sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.1-0 ${CLIP_PKGS}
   elif command -v pacman &>/dev/null; then
     echo "Installing dependencies via pacman..."
-    sudo pacman -S --needed --noconfirm gtk3 webkit2gtk ${CLIP_PKGS}
+    sudo pacman -S --needed --noconfirm gtk3 webkit2gtk-4.1 ${CLIP_PKGS}
   elif command -v apk &>/dev/null; then
     echo "Installing dependencies via apk (Alpine)..."
-    sudo apk add --no-cache gtk+3.0 webkit2gtk ${CLIP_PKGS}
+    sudo apk add --no-cache gtk+3.0 webkit2gtk-4.1 ${CLIP_PKGS}
   elif command -v rpm-ostree &>/dev/null; then
     echo "Installing dependencies via rpm-ostree (Fedora Atomic)..."
     sudo rpm-ostree install -y --idempotent --allow-inactive --apply-live gtk3 webkit2gtk4.1 ${CLIP_PKGS}
