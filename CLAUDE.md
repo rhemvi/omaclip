@@ -9,7 +9,7 @@ A Wails desktop clipboard manager that tracks clipboard history and syncs across
 - **Backend**: Go (Wails v2)
 - **Frontend**: Vue 3 + Vite + Pinia
 - **CSS**: TailwindCSS only — no other CSS frameworks, no custom CSS classes outside of Tailwind utilities
-- **Peer Discovery**: mDNS via `hashicorp/mdns` (`_omaclip._tcp` service type)
+- **Peer Discovery**: mDNS via `grandcat/zeroconf` (`_omaclip._tcp` service type)
 - **Sync Transport**: HTTPS with TLS — a CA cert is derived from the passphrase and used to sign a leaf cert; peers validate against this CA (no `InsecureSkipVerify`)
 
 ## Features
@@ -24,9 +24,10 @@ A Wails desktop clipboard manager that tracks clipboard history and syncs across
 
 - In-memory only (no persistence across restarts)
 - Default max: 50 items, configurable via `OMACLIP_CLIPBOARD_MAX_HISTORY`
-- Supports text and PNG images (max 5 MB per image); content type is either `"text"` or `"image"`
-- Images stored as base64-encoded PNG in `ClipboardEntry.ImageData`; SHA-256 used for duplicate detection
-- Wayland-aware: uses `wl-paste`/`wl-copy` if available; falls back through xclip → xsel → macOS osascript → macOS pbpaste
+- Supports text and images (max 5 MB per image); content type is either `"text"` or `"image"`
+- Images are normalised to PNG at ingestion (`image.Decode` + `png.Encode`) regardless of original format; stored as base64-encoded PNG in `ClipboardEntry.ImageData`; `ClipboardEntry.ImageMimeType` carries the MIME type (`"image/png"` after normalisation)
+- SHA-256 used for duplicate detection
+- Wayland-aware: uses `wl-paste`/`wl-copy` if available; falls back through xclip → xsel → macOS (`osascript`+`pbpaste` both required)
 
 ## Multi-Machine Sync (mDNS + HTTPS)
 
@@ -88,6 +89,7 @@ All configurable via environment variables (`OMACLIP_<FLAG>`) or command-line ar
 | `OMACLIP_REMOTE_CLIPBOARDS_POLL_INTERVAL` | `1s` | Peer fetch frequency |
 | `OMACLIP_REMOTE_CLIPBOARDS_DISABLE` | `false` | Disable remote sync entirely |
 | `OMACLIP_PEERS_POLL_INTERVAL` | `2s` | mDNS browse frequency |
+| `OMACLIP_PEERS_MDNS_INTERFACE` | `` | Bind mDNS to a specific network interface (e.g. `wlan0`) |
 | `OMACLIP_THEME_COLOR_PATH` | `~/.config/omarchy/current/theme/colors.toml` | Omarchy theme file path |
 | `OMACLIP_CONFIG_PATH` | `~/.config/omaclip/config.json` | Config file path |
 
