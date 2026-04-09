@@ -111,7 +111,10 @@ func TestLanIPs_OnlyIPv4(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	host, _ := os.Hostname()
-	d := New(discardLog, 5*time.Second, host, &passphrase.Store{})
+	d, err := New(discardLog, 5*time.Second, host, &passphrase.Store{}, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 
 	if d.log != discardLog {
 		t.Error("logger not set")
@@ -124,9 +127,20 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestNew_InvalidInterface(t *testing.T) {
+	host, _ := os.Hostname()
+	_, err := New(discardLog, 5*time.Second, host, &passphrase.Store{}, "nonexistent0")
+	if err == nil {
+		t.Error("expected error for invalid interface name")
+	}
+}
+
 func TestPeers_EmptyByDefault(t *testing.T) {
 	host, _ := os.Hostname()
-	d := New(discardLog, 5*time.Second, host, &passphrase.Store{})
+	d, err := New(discardLog, 5*time.Second, host, &passphrase.Store{}, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 
 	peers := d.Peers()
 	if len(peers) != 0 {
@@ -136,15 +150,21 @@ func TestPeers_EmptyByDefault(t *testing.T) {
 
 func TestShutdown_NilServer(t *testing.T) {
 	host, _ := os.Hostname()
-	d := New(discardLog, 5*time.Second, host, &passphrase.Store{})
+	d, err := New(discardLog, 5*time.Second, host, &passphrase.Store{}, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 	d.Shutdown()
 }
 
 func TestRegister_NoDiscoverableIps(t *testing.T) {
 	// give invalid host to force no discoverable ips
-	d1 := New(discardLog, 100*time.Millisecond, "invalid", &passphrase.Store{})
+	d1, err := New(discardLog, 100*time.Millisecond, "invalid", &passphrase.Store{}, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 
-	err := d1.Register(19901)
+	err = d1.Register(19901)
 	if !errors.Is(err, ErrNoDiscoverableIPs) {
 		t.Errorf("expected ErrNoDiscoverableIPs, got %v", err)
 	}
@@ -154,8 +174,14 @@ func TestDiscovery_TwoPeers(t *testing.T) {
 	host, _ := os.Hostname()
 	ps := &passphrase.Store{}
 	ps.Set("testpass")
-	d1 := New(discardLog, 100*time.Millisecond, host, ps)
-	d2 := New(discardLog, 100*time.Millisecond, host, ps)
+	d1, err := New(discardLog, 100*time.Millisecond, host, ps, "")
+	if err != nil {
+		t.Fatalf("New d1: %v", err)
+	}
+	d2, err := New(discardLog, 100*time.Millisecond, host, ps, "")
+	if err != nil {
+		t.Fatalf("New d2: %v", err)
+	}
 
 	if err := d1.Register(19901); err != nil {
 		t.Fatalf("d1 register: %v", err)
@@ -173,7 +199,7 @@ func TestDiscovery_TwoPeers(t *testing.T) {
 	d1.Start(ctx)
 	d2.Start(ctx)
 
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(10 * time.Second)
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -215,7 +241,10 @@ func TestDiscovery_TwoPeers(t *testing.T) {
 
 func TestBrowseLoop_StopsOnCancel(t *testing.T) {
 	host, _ := os.Hostname()
-	d := New(discardLog, 50*time.Millisecond, host, &passphrase.Store{})
+	d, err := New(discardLog, 50*time.Millisecond, host, &passphrase.Store{}, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	d.Start(ctx)

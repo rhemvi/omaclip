@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -32,6 +33,7 @@ type Config struct {
 	RemoteClipboardsPollInterval time.Duration
 	RemoteClipboardsMaxHistory   int
 	PeersPollInterval            time.Duration
+	PeersMDNSInterface           string
 	DisableRemoteClipboards      bool
 }
 
@@ -222,8 +224,21 @@ func (a *App) startNetworking() {
 	}
 
 	host, _ := os.Hostname()
-	a.discoverer = fmdns.New(a.log, a.cfg.PeersPollInterval, host, a.passphraseStore)
+	discoverer, err := fmdns.New(a.log, a.cfg.PeersPollInterval, host, a.passphraseStore, a.cfg.PeersMDNSInterface)
+	if err != nil {
+		if errors.Is(err, fmdns.ErrInterfaceNotFound) {
+			a.log.Error("mDNS setup failed", "error", err)
+			os.Exit(1)
+		}
+		a.log.Warn("mDNS setup failed", "error", err)
+		return
+	}
+	a.discoverer = discoverer
 	if err := a.discoverer.Register(a.syncServer.Port()); err != nil {
+		if errors.Is(err, fmdns.ErrServiceRegistration) {
+			a.log.Error("mDNS registration failed", "error", err)
+			os.Exit(1)
+		}
 		a.log.Warn("mDNS registration failed", "error", err)
 	}
 	a.discoverer.Start(a.ctx)

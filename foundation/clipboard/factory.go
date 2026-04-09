@@ -3,6 +3,8 @@ package clipboard
 import (
 	"errors"
 	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 var (
@@ -52,4 +54,16 @@ var availableFn = available
 func available(bin string) bool {
 	_, err := exec.LookPath(bin)
 	return err == nil
+}
+
+// imageFileExtensions lists extensions recognized as image files when detecting
+// file copies from a file manager.
+var imageFileExtensions = map[string]bool{
+	".png": true, ".jpg": true, ".jpeg": true,
+	".gif": true, ".bmp": true, ".tiff": true, ".tif": true,
+	".webp": true, ".avif": true, ".heic": true, ".heif": true,
+}
+
+func isImageFile(path string) bool {
+	return imageFileExtensions[strings.ToLower(filepath.Ext(path))]
 }

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const maxImageBytes = 5 * 1024 * 1024
+const maxImageBytes = 25 * 1024 * 1024
 
 // Reader abstracts clipboard reading so different implementations can be swapped in.
 type Reader interface {
@@ -198,7 +198,16 @@ func (m *Monitor) poll(ctx context.Context, watchCh <-chan struct{}) {
 // readClipboard checks the system clipboard for new text or image content and adds it to history.
 func (m *Monitor) readClipboard() {
 	text, err := m.reader.GetText()
-	if err == nil && text != "" && text != m.lastSeen {
+	textChanged := err == nil && text != "" && text != m.lastSeen
+
+	imgData, imgErr := m.reader.GetImage()
+	var imgHash string
+	if imgErr == nil && len(imgData) > 0 && len(imgData) <= maxImageBytes {
+		imgHash = sha256Hex(imgData)
+	}
+	imgChanged := imgHash != "" && imgHash != m.lastSeenHash
+
+	if textChanged {
 		m.lastSeen = text
 		m.lastSeenHash = ""
 		m.addEntry(ClipboardEntry{
@@ -207,25 +216,20 @@ func (m *Monitor) readClipboard() {
 			ContentType: "text",
 			Timestamp:   time.Now(),
 		})
-		return
 	}
 
-	imgData, err := m.reader.GetImage()
-	if err != nil || len(imgData) == 0 || len(imgData) > maxImageBytes {
-		return
+	if imgChanged {
+		m.lastSeenHash = imgHash
+		if !textChanged {
+			m.lastSeen = ""
+		}
+		m.addEntry(ClipboardEntry{
+			ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
+			ContentType: "image",
+			ImageData:   base64.StdEncoding.EncodeToString(imgData),
+			Timestamp:   time.Now(),
+		})
 	}
-	hash := sha256Hex(imgData)
-	if hash == m.lastSeenHash {
-		return
-	}
-	m.lastSeenHash = hash
-	m.lastSeen = ""
-	m.addEntry(ClipboardEntry{
-		ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
-		ContentType: "image",
-		ImageData:   base64.StdEncoding.EncodeToString(imgData),
-		Timestamp:   time.Now(),
-	})
 }
 
 // addEntry appends a new entry to history, trimming to maxHistory, then notifies the callback.

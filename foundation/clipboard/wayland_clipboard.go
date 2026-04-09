@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -21,16 +23,17 @@ func (w WaylandClipboard) GetText() (string, error) {
 		return "", fmt.Errorf("wl-paste --list-types: %w", err)
 	}
 
-	hasText := false
-	for _, t := range strings.Split(strings.TrimSpace(string(typesOut)), "\n") {
-		t = strings.TrimSpace(t)
-		if t == "text/plain" || t == "STRING" || t == "UTF8_STRING" {
-			hasText = true
-			break
-		}
-	}
-	if !hasText {
+	types := parseClipboardTypes(string(typesOut))
+
+	if !types.hasText {
 		return "", nil
+	}
+
+	// If this is a copied image file, skip the text (just the filename/URI).
+	if types.hasFileList {
+		if path := wlPasteFileImagePath(); path != "" {
+			return "", nil
+		}
 	}
 
 	cmd := exec.Command("wl-paste", "--no-newline")
@@ -41,7 +44,8 @@ func (w WaylandClipboard) GetText() (string, error) {
 	return string(out), nil
 }
 
-// GetImage returns PNG image bytes from the clipboard if the clipboard contains an image without a text representation.
+// GetImage returns image bytes from the clipboard. It reads the original file
+// when a file URI is present (file manager copy), otherwise reads image/png.
 func (w WaylandClipboard) GetImage() ([]byte, error) {
 	cmd := exec.Command("wl-paste", "--list-types")
 	out, err := cmd.Output()
@@ -49,19 +53,24 @@ func (w WaylandClipboard) GetImage() ([]byte, error) {
 		return nil, fmt.Errorf("wl-paste --list-types: %w", err)
 	}
 
-	types := strings.Split(strings.TrimSpace(string(out)), "\n")
-	hasImage := false
-	for _, t := range types {
-		t = strings.TrimSpace(t)
-		if t == "text/plain" || t == "STRING" || t == "UTF8_STRING" {
-			return nil, nil
-		}
-		if t == "image/png" {
-			hasImage = true
+	types := parseClipboardTypes(string(out))
+
+	// If a file URI is present and points to an image, read it directly.
+	if types.hasFileList {
+		if path := wlPasteFileImagePath(); path != "" {
+			data, err := os.ReadFile(path)
+			if err == nil {
+				return data, nil
+			}
 		}
 	}
 
-	if !hasImage {
+	// For non-file image data (e.g. screenshot, copy from browser), skip if text is also present.
+	if types.hasText {
+		return nil, nil
+	}
+
+	if !types.hasImage {
 		return nil, nil
 	}
 
@@ -108,6 +117,53 @@ func (w WaylandClipboard) Watch(ctx context.Context, notify chan<- struct{}) err
 	}()
 
 	return nil
+}
+
+type clipboardTypes struct {
+	hasText     bool
+	hasImage    bool
+	hasFileList bool
+}
+
+func parseClipboardTypes(raw string) clipboardTypes {
+	var ct clipboardTypes
+	for _, t := range strings.Split(strings.TrimSpace(raw), "\n") {
+		t = strings.TrimSpace(t)
+		switch {
+		case t == "text/plain" || t == "STRING" || t == "UTF8_STRING":
+			ct.hasText = true
+		case strings.HasPrefix(t, "image/"):
+			ct.hasImage = true
+		case t == "text/uri-list" || t == "x-special/gnome-copied-files":
+			ct.hasFileList = true
+		}
+	}
+	return ct
+}
+
+// wlPasteFileImagePath reads text/uri-list from the clipboard and returns the
+// local file path if it points to a single image file.
+func wlPasteFileImagePath() string {
+	cmd := exec.Command("wl-paste", "--type", "text/uri-list")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		u, err := url.Parse(line)
+		if err != nil || u.Scheme != "file" {
+			continue
+		}
+		path := u.Path
+		if isImageFile(path) {
+			return path
+		}
+	}
+	return ""
 }
 
 // SetImage writes PNG image data to the clipboard using wl-copy.

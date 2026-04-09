@@ -12,15 +12,18 @@ each other on the local network and share their clipboards.
 It works on Linux and macOS, but it loves [Omarchy](https://omarchy.org),
 hot-reloading its color scheme the moment your OS theme changes.
 
-- In-memory clipboard history text and images (PNG), up to 50 items
+- In-memory clipboard history text and images (PNG/JPEG), up to 50 items
   (configurable)
 - Keyboard navigation with shortcuts for quick copying (Ctrl+1..9)
 - Expandable entries for viewing long text or larger image previews
+- Image file copy support: copying an image file from a file manager
+  (Finder, Nautilus, etc.) captures the actual image, not just the filename
 - Live Omarchy theme support, colors update automatically when you switch
   themes
 - Secure multi-machine sync, peers discover each other via mDNS and sync
   over HTTPS with certificate validation and a shared passphrase; only
   machines with the same passphrase can connect
+- Optional mDNS interface binding for multi-NIC setups
 
 ## Installation
 
@@ -94,6 +97,37 @@ sudo install -m 755 omaclip /usr/local/bin/omaclip
 curl -fsSL https://github.com/rhemvi/omaclip/releases/latest/download/omaclip-darwin-arm64 -o omaclip
 sudo install -m 755 omaclip /usr/local/bin/omaclip
 ```
+
+## Configuration
+
+Omaclip can be configured via CLI flags or environment variables. Run
+`omaclip --help` to see all options.
+
+### Passphrase
+
+On first launch, omaclip will prompt for a passphrase used to secure peer
+sync. It is saved to `~/.config/omaclip/config.json`. All machines must
+share the same passphrase to discover and sync with each other.
+
+### mDNS interface binding
+
+By default, mDNS peer discovery broadcasts on all network interfaces. On
+machines with multiple NICs (e.g. WiFi + Ethernet + Docker bridge), you can
+bind to a specific interface:
+
+```bash
+# CLI flag
+omaclip --peers-mdns-interface en0
+
+# Environment variable
+export OMACLIP_PEERS_MDNS_INTERFACE=en0
+```
+
+Common interface names: `en0` (macOS WiFi), `wlan0` (Linux WiFi),
+`eth0` (Linux Ethernet).
+
+To make it permanent, add the export to your shell profile (`~/.zshrc`,
+`~/.bashrc`, etc.).
 
 ## Live Development
 

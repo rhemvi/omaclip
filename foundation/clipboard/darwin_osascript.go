@@ -18,8 +18,16 @@ func (d DarwinOsascriptClipboard) GetText() (string, error) {
 		return "", err
 	}
 
-	if !containsType(info, "public.utf8-plain-text") {
+	if !containsType(info, "public.utf8-plain-text") && !containsType(info, "«class utf8»") {
 		return "", nil
+	}
+
+	// If this is a file copy and the file is an image, skip the text (which is just the filename).
+	if containsType(info, "«class furl»") || containsType(info, "public.file-url") {
+		path := d.fileURL()
+		if path != "" && isImageFile(path) {
+			return "", nil
+		}
 	}
 
 	cmd := exec.Command("pbpaste")
@@ -30,43 +38,39 @@ func (d DarwinOsascriptClipboard) GetText() (string, error) {
 	return strings.TrimRight(string(out), "\n"), nil
 }
 
-// GetImage returns PNG image bytes from the clipboard if it contains an image without a text representation.
+// GetImage returns image bytes from the clipboard. It prefers reading the
+// original file when a file URL is present (Finder copy), falling back to
+// JPEG clipboard data, then PNG.
 func (d DarwinOsascriptClipboard) GetImage() ([]byte, error) {
 	info, err := d.clipboardInfo()
 	if err != nil {
 		return nil, err
 	}
 
-	if containsType(info, "public.utf8-plain-text") {
-		return nil, nil
+	// If a file URL is present and it points to an image file, read it directly.
+	if containsType(info, "«class furl»") || containsType(info, "public.file-url") {
+		path := d.fileURL()
+		if path != "" && isImageFile(path) {
+			data, err := os.ReadFile(path)
+			if err == nil {
+				return data, nil
+			}
+		}
 	}
+
+	// Prefer JPEG from clipboard (much smaller than PNG for photos).
+	if containsType(info, "JPEG picture") {
+		data, err := d.readClipboardAs("JPEG picture", "omaclip-read-*.jpg")
+		if err == nil && len(data) > 0 {
+			return data, nil
+		}
+	}
+
 	if !containsType(info, "PNGf") {
 		return nil, nil
 	}
 
-	f, err := os.CreateTemp("", "omaclip-read-*.png")
-	if err != nil {
-		return nil, fmt.Errorf("creating temp file: %w", err)
-	}
-	defer os.Remove(f.Name())
-	f.Close()
-
-	script := fmt.Sprintf(
-		`set filePath to (POSIX file %q)
-set fileRef to open for access filePath with write permission
-write (the clipboard as «class PNGf») to fileRef
-close access fileRef`, f.Name())
-
-	cmd := exec.Command("osascript", "-e", script)
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("osascript read clipboard image: %w", err)
-	}
-
-	data, err := os.ReadFile(f.Name())
-	if err != nil {
-		return nil, fmt.Errorf("reading temp file: %w", err)
-	}
-	return data, nil
+	return d.readClipboardAs("«class PNGf»", "omaclip-read-*.png")
 }
 
 // SetText writes text to the clipboard using pbcopy.
@@ -108,6 +112,41 @@ func (d DarwinOsascriptClipboard) clipboardInfo() (string, error) {
 		return "", fmt.Errorf("osascript clipboard info: %w", err)
 	}
 	return string(out), nil
+}
+
+func (d DarwinOsascriptClipboard) fileURL() string {
+	cmd := exec.Command("osascript", "-e", `POSIX path of (the clipboard as «class furl»)`)
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func (d DarwinOsascriptClipboard) readClipboardAs(clipClass, tmpPattern string) ([]byte, error) {
+	f, err := os.CreateTemp("", tmpPattern)
+	if err != nil {
+		return nil, fmt.Errorf("creating temp file: %w", err)
+	}
+	defer os.Remove(f.Name())
+	f.Close()
+
+	script := fmt.Sprintf(
+		`set filePath to (POSIX file %q)
+set fileRef to open for access filePath with write permission
+write (the clipboard as %s) to fileRef
+close access fileRef`, f.Name(), clipClass)
+
+	cmd := exec.Command("osascript", "-e", script)
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("osascript read clipboard image: %w", err)
+	}
+
+	data, err := os.ReadFile(f.Name())
+	if err != nil {
+		return nil, fmt.Errorf("reading temp file: %w", err)
+	}
+	return data, nil
 }
 
 func containsType(info, typeName string) bool {

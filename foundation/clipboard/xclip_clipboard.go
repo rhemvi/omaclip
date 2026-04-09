@@ -3,6 +3,8 @@ package clipboard
 import (
 	"bytes"
 	"fmt"
+	"net/url"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -12,22 +14,17 @@ type XclipClipboard struct{}
 
 // GetText returns the current clipboard text using xclip. Returns empty if the clipboard only contains non-text types.
 func (x XclipClipboard) GetText() (string, error) {
-	typesCmd := exec.Command("xclip", "-selection", "clipboard", "-t", "TARGETS", "-o")
-	typesOut, err := typesCmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("xclip TARGETS: %w", err)
+	types := x.clipboardTypes()
+
+	if !types.hasText {
+		return "", nil
 	}
 
-	hasText := false
-	for _, t := range strings.Split(strings.TrimSpace(string(typesOut)), "\n") {
-		t = strings.TrimSpace(t)
-		if t == "text/plain" || t == "STRING" || t == "UTF8_STRING" {
-			hasText = true
-			break
+	// If this is a copied image file, skip the text (just the filename/URI).
+	if types.hasFileList {
+		if path := xclipFileImagePath(); path != "" {
+			return "", nil
 		}
-	}
-	if !hasText {
-		return "", nil
 	}
 
 	cmd := exec.Command("xclip", "-selection", "clipboard", "-o")
@@ -38,27 +35,27 @@ func (x XclipClipboard) GetText() (string, error) {
 	return strings.TrimRight(string(out), "\n"), nil
 }
 
-// GetImage returns PNG image bytes from the clipboard if the clipboard contains an image without a text representation.
+// GetImage returns image bytes from the clipboard. It reads the original file
+// when a file URI is present (file manager copy), otherwise reads image/png.
 func (x XclipClipboard) GetImage() ([]byte, error) {
-	typesCmd := exec.Command("xclip", "-selection", "clipboard", "-t", "TARGETS", "-o")
-	typesOut, err := typesCmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("xclip TARGETS: %w", err)
-	}
+	types := x.clipboardTypes()
 
-	types := strings.Split(strings.TrimSpace(string(typesOut)), "\n")
-	hasImage := false
-	for _, t := range types {
-		t = strings.TrimSpace(t)
-		if t == "text/plain" || t == "STRING" || t == "UTF8_STRING" {
-			return nil, nil
-		}
-		if t == "image/png" {
-			hasImage = true
+	// If a file URI is present and points to an image, read it directly.
+	if types.hasFileList {
+		if path := xclipFileImagePath(); path != "" {
+			data, err := os.ReadFile(path)
+			if err == nil {
+				return data, nil
+			}
 		}
 	}
 
-	if !hasImage {
+	// For non-file image data, skip if text is also present.
+	if types.hasText {
+		return nil, nil
+	}
+
+	if !types.hasImage {
 		return nil, nil
 	}
 
@@ -68,6 +65,40 @@ func (x XclipClipboard) GetImage() ([]byte, error) {
 		return nil, fmt.Errorf("xclip image/png: %w", err)
 	}
 	return imgData, nil
+}
+
+func (x XclipClipboard) clipboardTypes() clipboardTypes {
+	typesCmd := exec.Command("xclip", "-selection", "clipboard", "-t", "TARGETS", "-o")
+	typesOut, err := typesCmd.Output()
+	if err != nil {
+		return clipboardTypes{}
+	}
+	return parseClipboardTypes(string(typesOut))
+}
+
+// xclipFileImagePath reads text/uri-list from the clipboard and returns the
+// local file path if it points to a single image file.
+func xclipFileImagePath() string {
+	cmd := exec.Command("xclip", "-selection", "clipboard", "-t", "text/uri-list", "-o")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		u, err := url.Parse(line)
+		if err != nil || u.Scheme != "file" {
+			continue
+		}
+		path := u.Path
+		if isImageFile(path) {
+			return path
+		}
+	}
+	return ""
 }
 
 // SetText writes text to the clipboard using xclip.

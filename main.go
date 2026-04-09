@@ -39,7 +39,8 @@ type appConfig struct {
 		Disable      bool          `conf:"default:false,help:disable fetching clipboards from remote peers"`
 	}
 	Peers struct {
-		PollInterval time.Duration `conf:"default:2s,help:how often to browse for peers on the local network via mDNS"`
+		PollInterval  time.Duration `conf:"default:2s,help:how often to browse for peers on the local network via mDNS"`
+		MDNSInterface string        `conf:"help:bind mDNS to a specific network interface (e.g. wlan0) instead of all interfaces"`
 	}
 	conf.Version
 }
@@ -87,6 +88,7 @@ func run() error {
 		RemoteClipboardsPollInterval: cfg.RemoteClipboards.PollInterval,
 		RemoteClipboardsMaxHistory:   cfg.RemoteClipboards.MaxHistory,
 		PeersPollInterval:            cfg.Peers.PollInterval,
+		PeersMDNSInterface:          cfg.Peers.MDNSInterface,
 		DisableRemoteClipboards:      cfg.RemoteClipboards.Disable,
 	})
 
