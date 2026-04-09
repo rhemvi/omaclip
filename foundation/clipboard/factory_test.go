@@ -42,19 +42,19 @@ func TestNewReaderWriter(t *testing.T) {
 			wantBackend: "x11 (xsel)",
 		},
 		{
-			name:        "darwin osascript selected when available",
-			available:   []string{"osascript"},
-			wantBackend: "darwin (osascript)",
-		},
-		{
-			name:        "darwin osascript preferred over pbpaste",
+			name:        "darwin selected when osascript and pbpaste available",
 			available:   []string{"osascript", "pbpaste"},
-			wantBackend: "darwin (osascript)",
+			wantBackend: "darwin (osascript+pbpaste)",
 		},
 		{
-			name:        "darwin pbpaste when no osascript",
-			available:   []string{"pbpaste"},
-			wantBackend: "darwin (pbpaste)",
+			name:    "error when only osascript available",
+			available: []string{"osascript"},
+			wantErr: true,
+		},
+		{
+			name:    "error when only pbpaste available",
+			available: []string{"pbpaste"},
+			wantErr: true,
 		},
 		{
 			name:    "error when nothing available",

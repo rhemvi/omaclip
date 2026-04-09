@@ -2,14 +2,21 @@
 package clipboard
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"image"
+	"image/png"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
+
+	_ "image/gif"
+	_ "image/jpeg"
 )
 
 const maxImageBytes = 25 * 1024 * 1024
@@ -23,7 +30,7 @@ type Reader interface {
 // Writer abstracts clipboard writing so different implementations can be swapped in.
 type Writer interface {
 	SetText(text string) error
-	SetImage(pngData []byte) error
+	SetImage(data []byte, mimeType string) error
 }
 
 // Watcher is optionally implemented by clipboard backends that support event-driven change notifications instead of polling.
@@ -108,6 +115,22 @@ func (m *Monitor) GetEntry(id string) (ClipboardEntry, bool) {
 	return ClipboardEntry{}, false
 }
 
+// CopyImage writes base64-encoded image data to the system clipboard without adding it to history.
+func (m *Monitor) CopyImage(imageDataBase64 string, mimeType string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	imgBytes, err := base64.StdEncoding.DecodeString(imageDataBase64)
+	if err != nil {
+		return fmt.Errorf("decoding image data: %w", err)
+	}
+	if err := m.writer.SetImage(imgBytes, mimeType); err != nil {
+		return err
+	}
+	m.lastSeenHash = sha256Hex(imgBytes)
+	m.lastSeen = ""
+	return nil
+}
+
 // CopyItem writes the entry with the given ID back to the system clipboard.
 func (m *Monitor) CopyItem(id string) error {
 	m.mu.Lock()
@@ -120,7 +143,7 @@ func (m *Monitor) CopyItem(id string) error {
 				if err != nil {
 					return fmt.Errorf("decoding image data: %w", err)
 				}
-				if err := m.writer.SetImage(imgBytes); err != nil {
+				if err := m.writer.SetImage(imgBytes, entry.ImageMimeType); err != nil {
 					return err
 				}
 				m.lastSeenHash = sha256Hex(imgBytes)
@@ -146,22 +169,6 @@ func (m *Monitor) CopyText(text string) error {
 		return err
 	}
 	m.lastSeen = text
-	return nil
-}
-
-// CopyImage writes base64-encoded PNG data to the system clipboard without adding it to history.
-func (m *Monitor) CopyImage(imageDataBase64 string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	imgBytes, err := base64.StdEncoding.DecodeString(imageDataBase64)
-	if err != nil {
-		return fmt.Errorf("decoding image data: %w", err)
-	}
-	if err := m.writer.SetImage(imgBytes); err != nil {
-		return err
-	}
-	m.lastSeenHash = sha256Hex(imgBytes)
-	m.lastSeen = ""
 	return nil
 }
 
@@ -223,13 +230,29 @@ func (m *Monitor) readClipboard() {
 		if !textChanged {
 			m.lastSeen = ""
 		}
+		pngData := toPNG(imgData)
 		m.addEntry(ClipboardEntry{
-			ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
-			ContentType: "image",
-			ImageData:   base64.StdEncoding.EncodeToString(imgData),
-			Timestamp:   time.Now(),
+			ID:            fmt.Sprintf("%d", time.Now().UnixNano()),
+			ContentType:   "image",
+			ImageData:     base64.StdEncoding.EncodeToString(pngData),
+			ImageMimeType: http.DetectContentType(pngData),
+			Timestamp:     time.Now(),
 		})
 	}
+}
+
+// toPNG decodes image bytes of any supported format and re-encodes them as PNG.
+// Returns the original bytes unchanged if decoding fails.
+func toPNG(data []byte) []byte {
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return data
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return data
+	}
+	return buf.Bytes()
 }
 
 // addEntry appends a new entry to history, trimming to maxHistory, then notifies the callback.

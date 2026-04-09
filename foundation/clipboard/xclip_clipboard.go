@@ -111,10 +111,10 @@ func (x XclipClipboard) SetText(text string) error {
 	return nil
 }
 
-// SetImage writes PNG image data to the clipboard using xclip.
-func (x XclipClipboard) SetImage(pngData []byte) error {
-	cmd := exec.Command("xclip", "-selection", "clipboard", "-t", "image/png")
-	cmd.Stdin = bytes.NewReader(pngData)
+// SetImage writes image data to the clipboard using xclip.
+func (x XclipClipboard) SetImage(data []byte, mimeType string) error {
+	cmd := exec.Command("xclip", "-selection", "clipboard", "-t", mimeType)
+	cmd.Stdin = bytes.NewReader(data)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("xclip image: %w", err)
 	}

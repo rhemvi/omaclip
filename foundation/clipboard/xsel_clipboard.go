@@ -36,6 +36,6 @@ func (x XselClipboard) SetText(text string) error {
 }
 
 // SetImage always returns an error — xsel does not support image clipboard operations.
-func (x XselClipboard) SetImage(pngData []byte) error {
+func (x XselClipboard) SetImage(data []byte, mimeType string) error {
 	return ErrNotImplemented
 }

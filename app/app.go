@@ -146,9 +146,9 @@ func (a *App) CopyRemoteItem(content string) error {
 	return a.monitor.CopyText(content)
 }
 
-// CopyRemoteImage writes base64-encoded PNG data to the system clipboard as an image.
-func (a *App) CopyRemoteImage(imageDataBase64 string) error {
-	return a.monitor.CopyImage(imageDataBase64)
+// CopyRemoteImage writes base64-encoded image data from a remote peer to the system clipboard.
+func (a *App) CopyRemoteImage(imageDataBase64 string, mimeType string) error {
+	return a.monitor.CopyImage(imageDataBase64, mimeType)
 }
 
 // GetTheme returns the currently loaded theme colors.
@@ -227,6 +227,7 @@ func (a *App) startNetworking() error {
 	if err := a.syncServer.Start(); err != nil {
 		return fmt.Errorf("failed to start sync https server: %w", err)
 	}
+
 
 	host, _ := os.Hostname()
 	discoverer, err := fmdns.New(a.log, a.cfg.PeersPollInterval, host, a.passphraseStore, a.cfg.PeersMDNSInterface)

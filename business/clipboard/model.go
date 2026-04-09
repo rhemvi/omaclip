@@ -8,6 +8,7 @@ type ClipboardEntry struct {
 	ID          string    `json:"id"`
 	Content     string    `json:"content"`
 	ContentType string    `json:"contentType"`
-	ImageData   string    `json:"imageData,omitempty"`
+	ImageData     string    `json:"imageData,omitempty"`
+	ImageMimeType string    `json:"imageMimeType,omitempty"`
 	Timestamp   time.Time `json:"timestamp"`
 }

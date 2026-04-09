@@ -119,27 +119,6 @@ func (w WaylandClipboard) Watch(ctx context.Context, notify chan<- struct{}) err
 	return nil
 }
 
-type clipboardTypes struct {
-	hasText     bool
-	hasImage    bool
-	hasFileList bool
-}
-
-func parseClipboardTypes(raw string) clipboardTypes {
-	var ct clipboardTypes
-	for _, t := range strings.Split(strings.TrimSpace(raw), "\n") {
-		t = strings.TrimSpace(t)
-		switch {
-		case t == "text/plain" || t == "STRING" || t == "UTF8_STRING":
-			ct.hasText = true
-		case strings.HasPrefix(t, "image/"):
-			ct.hasImage = true
-		case t == "text/uri-list" || t == "x-special/gnome-copied-files":
-			ct.hasFileList = true
-		}
-	}
-	return ct
-}
 
 // wlPasteFileImagePath reads text/uri-list from the clipboard and returns the
 // local file path if it points to a single image file.
@@ -166,10 +145,10 @@ func wlPasteFileImagePath() string {
 	return ""
 }
 
-// SetImage writes PNG image data to the clipboard using wl-copy.
-func (w WaylandClipboard) SetImage(pngData []byte) error {
-	cmd := exec.Command("wl-copy", "--type", "image/png")
-	cmd.Stdin = bytes.NewReader(pngData)
+// SetImage writes image data to the clipboard using wl-copy.
+func (w WaylandClipboard) SetImage(data []byte, mimeType string) error {
+	cmd := exec.Command("wl-copy", "--type", mimeType)
+	cmd.Stdin = bytes.NewReader(data)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("wl-copy image: %w", err)
 	}

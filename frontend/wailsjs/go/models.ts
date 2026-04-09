@@ -5,6 +5,7 @@ export namespace clipboard {
 	    content: string;
 	    contentType: string;
 	    imageData?: string;
+	    imageMimeType?: string;
 	    // Go type: time
 	    timestamp: any;
 	
@@ -18,6 +19,7 @@ export namespace clipboard {
 	        this.content = source["content"];
 	        this.contentType = source["contentType"];
 	        this.imageData = source["imageData"];
+	        this.imageMimeType = source["imageMimeType"];
 	        this.timestamp = this.convertValues(source["timestamp"], null);
 	    }
 	

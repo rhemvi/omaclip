@@ -29,7 +29,7 @@ export const useRemoteStore = defineStore('remote', () => {
     if (!entry) return
     lastCopiedId.value = id
     if (entry.contentType === 'image') {
-      await CopyRemoteImage(entry.imageData)
+      await CopyRemoteImage(entry.imageData, entry.imageMimeType)
     } else {
       await CopyRemoteItem(entry.content)
     }

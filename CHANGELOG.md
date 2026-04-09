@@ -11,10 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `--peers-mdns-interface` flag to bind mDNS to a specific network interface, useful for multi-homed hosts (contributed by [@K53N0](https://github.com/K53N0))
 - Broader image type support: clipboard now detects images copied from file managers (PNG, JPEG, GIF, BMP, WebP, TIFF) in addition to raw PNG (contributed by [@K53N0](https://github.com/K53N0))
+- mDNS registration now logs the advertised IPs for easier network debugging (contributed by [@ntavelis](https://github.com/ntavelis))
 
 ### Changed
 
 - Replaced `hashicorp/mdns` with `grandcat/zeroconf` for more reliable peer discovery (contributed by [@K53N0](https://github.com/K53N0))
+- Refactored `startNetworking` error handling: the function now returns an error instead of calling `os.Exit` directly, keeping exit logic centralised in the startup function (contributed by [@ntavelis](https://github.com/ntavelis))
+- Simplified mDNS browse logic: IPv6 fallback removed (IPv4-only traffic enforced); peers with no IPv4 address are skipped rather than stored with an empty address (contributed by [@ntavelis](https://github.com/ntavelis))
+- Updated Go dependencies to latest versions (contributed by [@ntavelis](https://github.com/ntavelis))
+- macOS clipboard backend consolidated: dropped the text-only pbpaste fallback; Darwin now requires both `osascript` and `pbpaste`, combining full image and text support in a single `DarwinClipboard` implementation (contributed by [@ntavelis](https://github.com/ntavelis))
+- Clipboard images are now normalised to PNG at ingestion using `image.Decode` + `png.Encode`, ensuring consistent format across all backends and correct behaviour when pasting into browsers (contributed by [@ntavelis](https://github.com/ntavelis))
+- `ClipboardEntry` now carries `imageMimeType` so the frontend renders images with the correct MIME type in data URLs (contributed by [@ntavelis](https://github.com/ntavelis))
+- `SetImage` across all clipboard backends now accepts a `mimeType` parameter and advertises the correct type to the clipboard (contributed by [@ntavelis](https://github.com/ntavelis))
+- Shared clipboard utilities (`isImageFile`, `clipboardTypes`, `parseClipboardTypes`) extracted to a common file used by all backends (contributed by [@ntavelis](https://github.com/ntavelis))
 
 ### Fixed
 

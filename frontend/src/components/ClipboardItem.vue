@@ -103,7 +103,7 @@ function formatTime(timestamp) {
 
         <div class="flex-1 min-w-0">
           <img v-if="entry.contentType === 'image'"
-            :src="'data:image/png;base64,' + entry.imageData"
+            :src="'data:' + entry.imageMimeType + ';base64,' + entry.imageData"
             :class="expanded ? 'max-h-64' : 'max-h-16'"
             class="max-w-full rounded object-contain" />
           <p v-else ref="textRef" class="text-sm text-foreground"
