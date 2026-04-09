@@ -129,12 +129,12 @@ func parseClipboardTypes(raw string) clipboardTypes {
 	var ct clipboardTypes
 	for _, t := range strings.Split(strings.TrimSpace(raw), "\n") {
 		t = strings.TrimSpace(t)
-		switch t {
-		case "text/plain", "STRING", "UTF8_STRING":
+		switch {
+		case t == "text/plain" || t == "STRING" || t == "UTF8_STRING":
 			ct.hasText = true
-		case "image/png":
+		case strings.HasPrefix(t, "image/"):
 			ct.hasImage = true
-		case "text/uri-list", "x-special/gnome-copied-files":
+		case t == "text/uri-list" || t == "x-special/gnome-copied-files":
 			ct.hasFileList = true
 		}
 	}

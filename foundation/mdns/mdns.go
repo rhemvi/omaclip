@@ -21,7 +21,11 @@ const (
 	domain      = "local."
 )
 
-var ErrNoDiscoverableIPs = fmt.Errorf("mdns: no discoverable IPs, skipping registering to the network")
+var (
+	ErrNoDiscoverableIPs  = fmt.Errorf("mdns: no discoverable IPs, skipping registering to the network")
+	ErrInterfaceNotFound  = fmt.Errorf("mdns: requested network interface not found")
+	ErrServiceRegistration = fmt.Errorf("mdns: failed to register service")
+)
 
 // Peer describes a discovered remote Omaclip instance.
 type Peer struct {
@@ -62,7 +66,7 @@ func New(log *slog.Logger, browsePeriod time.Duration, hostname string, ps *pass
 	if ifaceName != "" {
 		iface, err := net.InterfaceByName(ifaceName)
 		if err != nil {
-			return nil, fmt.Errorf("mdns: looking up interface %q: %w", ifaceName, err)
+			return nil, fmt.Errorf("%w: %s: %v", ErrInterfaceNotFound, ifaceName, err)
 		}
 		d.iface = iface
 	}
@@ -99,7 +103,7 @@ func (d *Discoverer) Register(port int) error {
 
 	srv, err := zeroconf.RegisterProxy(instanceName, serviceType, domain, port, instanceName, ipStrs, txt, ifaces)
 	if err != nil {
-		return fmt.Errorf("mdns: registering service: %w", err)
+		return fmt.Errorf("%w: %v", ErrServiceRegistration, err)
 	}
 
 	d.server = srv
