@@ -199,7 +199,7 @@ func TestDiscovery_TwoPeers(t *testing.T) {
 	d1.Start(ctx)
 	d2.Start(ctx)
 
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(10 * time.Second)
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 

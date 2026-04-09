@@ -1,12 +1,10 @@
-// Package mdns wraps github.com/hashicorp/mdns to advertise and discover
+// Package mdns wraps github.com/grandcat/zeroconf to advertise and discover
 // Omaclip instances on the local network.
 package mdns
 
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"log/slog"
 	"net"
 	"strings"
@@ -15,7 +13,7 @@ import (
 
 	"github.com/rhemvi/omaclip/business/passphrase"
 
-	"github.com/hashicorp/mdns"
+	"github.com/grandcat/zeroconf"
 )
 
 const (
@@ -37,7 +35,7 @@ const peerTTLCycles = 3
 // Discoverer registers this instance via mDNS and continuously browses for peers.
 type Discoverer struct {
 	log             *slog.Logger
-	server          *mdns.Server
+	server          *zeroconf.Server
 	myName          string
 	browsePeriod    time.Duration
 	passphraseStore *passphrase.Store
@@ -87,19 +85,21 @@ func (d *Discoverer) Register(port int) error {
 		return ErrNoDiscoverableIPs
 	}
 
-	svc, err := mdns.NewMDNSService(instanceName, serviceType, domain, "", port, ips, []string{"version=1", "ph=" + d.passphraseStore.ShortHash()})
-	if err != nil {
-		return fmt.Errorf("mdns: creating service: %w", err)
+	txt := []string{"version=1", "ph=" + d.passphraseStore.ShortHash()}
+
+	ipStrs := make([]string, len(ips))
+	for i, ip := range ips {
+		ipStrs[i] = ip.String()
 	}
 
-	cfg := &mdns.Config{Zone: svc, Logger: log.New(io.Discard, "", 0)}
+	var ifaces []net.Interface
 	if d.iface != nil {
-		cfg.Iface = d.iface
+		ifaces = []net.Interface{*d.iface}
 	}
 
-	srv, err := mdns.NewServer(cfg)
+	srv, err := zeroconf.RegisterProxy(instanceName, serviceType, domain, port, instanceName, ipStrs, txt, ifaces)
 	if err != nil {
-		return fmt.Errorf("mdns: starting server: %w", err)
+		return fmt.Errorf("mdns: registering service: %w", err)
 	}
 
 	d.server = srv
@@ -126,12 +126,12 @@ func (d *Discoverer) Peers() []Peer {
 // Shutdown tears down the mDNS server.
 func (d *Discoverer) Shutdown() {
 	if d.server != nil {
-		d.server.Shutdown() //nolint:errcheck
+		d.server.Shutdown()
 	}
 }
 
 func (d *Discoverer) browseLoop(ctx context.Context) {
-	d.browse()
+	d.browse(ctx)
 	ticker := time.NewTicker(d.browsePeriod)
 	defer ticker.Stop()
 	for {
@@ -139,47 +139,56 @@ func (d *Discoverer) browseLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			d.browse()
+			d.browse(ctx)
 		}
 	}
 }
 
-func (d *Discoverer) browse() {
-	entries := make(chan *mdns.ServiceEntry, 16)
+func (d *Discoverer) browse(ctx context.Context) {
+	var opts []zeroconf.ClientOption
+	if d.iface != nil {
+		opts = append(opts, zeroconf.SelectIfaces([]net.Interface{*d.iface}))
+	}
+	opts = append(opts, zeroconf.SelectIPTraffic(zeroconf.IPv4))
+
+	resolver, err := zeroconf.NewResolver(opts...)
+	if err != nil {
+		d.log.Warn("mdns browse failed", "error", err)
+		return
+	}
+
+	entries := make(chan *zeroconf.ServiceEntry, 16)
+
+	browseCtx, cancel := context.WithTimeout(ctx, d.browsePeriod)
+	defer cancel()
+
 	go func() {
-		params := mdns.DefaultParams(serviceType)
-		params.Entries = entries
-		params.DisableIPv6 = true
-		params.Logger = log.New(io.Discard, "", 0)
-		if d.iface != nil {
-			params.Interface = d.iface
-		}
-		if err := mdns.Query(params); err != nil {
+		if err := resolver.Browse(browseCtx, serviceType, domain, entries); err != nil {
 			d.log.Warn("mdns browse failed", "error", err)
 		}
-		close(entries)
 	}()
 
 	seen := make(map[string]Peer)
 	for entry := range entries {
-		if d.myName != "" && strings.HasPrefix(entry.Name, d.myName) {
+		name := entry.Instance
+		if d.myName != "" && name == d.myName {
 			continue
 		}
 
-		if !d.peerMatchesPassphrase(entry.InfoFields) {
-			d.log.Debug("mdns peer skipped: passphrase mismatch", "name", entry.Name)
+		if !d.peerMatchesPassphrase(entry.Text) {
+			d.log.Debug("mdns peer skipped: passphrase mismatch", "name", name)
 			continue
 		}
 
 		addr := ""
-		if entry.AddrV4 != nil {
-			addr = entry.AddrV4.String()
-		} else if entry.AddrV6 != nil {
-			addr = entry.AddrV6.String()
+		if len(entry.AddrIPv4) > 0 {
+			addr = entry.AddrIPv4[0].String()
+		} else if len(entry.AddrIPv6) > 0 {
+			addr = entry.AddrIPv6[0].String()
 		}
 
-		seen[entry.Name] = Peer{
-			Name: entry.Name,
+		seen[name] = Peer{
+			Name: name,
 			Addr: addr,
 			Port: entry.Port,
 		}
