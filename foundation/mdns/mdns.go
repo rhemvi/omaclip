@@ -117,7 +117,7 @@ func (d *Discoverer) Register(port int) error {
 	}
 
 	d.server = srv
-	d.log.Info("mdns registered", "instance", instanceName, "port", port)
+	d.log.Info("mdns registered", "instance", instanceName, "port", port, "ips", ipStrs)
 	return nil
 }
 
