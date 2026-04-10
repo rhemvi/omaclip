@@ -19,8 +19,6 @@ import (
 	_ "image/jpeg"
 )
 
-const maxImageBytes = 25 * 1024 * 1024
-
 // Reader abstracts clipboard reading so different implementations can be swapped in.
 type Reader interface {
 	GetText() (string, error)
@@ -40,26 +38,28 @@ type Watcher interface {
 
 // Monitor polls the system clipboard and maintains an in-memory history.
 type Monitor struct {
-	mu           sync.RWMutex
-	log          *slog.Logger
-	history      []ClipboardEntry
-	maxHistory   int
-	pollInterval time.Duration
-	lastSeen     string
-	lastSeenHash string
-	cancel       context.CancelFunc
-	reader       Reader
-	writer       Writer
-	OnNewEntry   func(ClipboardEntry)
+	mu              sync.RWMutex
+	log             *slog.Logger
+	history         []ClipboardEntry
+	maxHistory      int
+	maxImageMB      int
+	pollInterval    time.Duration
+	lastSeen        string
+	lastSeenHash    string
+	cancel          context.CancelFunc
+	reader          Reader
+	writer          Writer
+	OnNewEntry      func(ClipboardEntry)
 }
 
 // NewMonitor creates a Monitor with the given reader, writer, capacity, and poll interval.
-func NewMonitor(log *slog.Logger, reader Reader, writer Writer, maxHistory int, pollInterval time.Duration) *Monitor {
+func NewMonitor(log *slog.Logger, reader Reader, writer Writer, maxHistory int, maxImageMB int, pollInterval time.Duration) *Monitor {
 	return &Monitor{
 		log:          log,
 		reader:       reader,
 		writer:       writer,
 		maxHistory:   maxHistory,
+		maxImageMB:   maxImageMB,
 		pollInterval: pollInterval,
 	}
 }
@@ -209,7 +209,7 @@ func (m *Monitor) readClipboard() {
 
 	imgData, imgErr := m.reader.GetImage()
 	var imgHash string
-	if imgErr == nil && len(imgData) > 0 && len(imgData) <= maxImageBytes {
+	if imgErr == nil && len(imgData) > 0 && len(imgData) <= m.maxImageMB*1024*1024 {
 		imgHash = sha256Hex(imgData)
 	}
 	imgChanged := imgHash != "" && imgHash != m.lastSeenHash

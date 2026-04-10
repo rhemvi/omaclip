@@ -27,6 +27,7 @@ import (
 // Config holds all configurable values for the application.
 type Config struct {
 	MaxHistory                   int
+	MaxImageMB                   int
 	ThemeColorPath               string
 	ConfigPath                   string
 	PollInterval                 time.Duration
@@ -70,7 +71,7 @@ func (a *App) Startup(ctx context.Context) {
 		os.Exit(1)
 	}
 	a.log.Info("clipboard backend selected", "backend", backend)
-	a.monitor = clipboard.NewMonitor(a.log, reader, writer, a.cfg.MaxHistory, a.cfg.PollInterval)
+	a.monitor = clipboard.NewMonitor(a.log, reader, writer, a.cfg.MaxHistory, a.cfg.MaxImageMB, a.cfg.PollInterval)
 
 	if areWeRunningInOmarchy(a.cfg.ThemeColorPath) {
 		colors, err := theme.Load(a.cfg.ThemeColorPath)
@@ -91,7 +92,11 @@ func (a *App) Startup(ctx context.Context) {
 	}
 
 	if err := validatePassphraseFromConfig(a.cfg.ConfigPath, a.passphraseStore); err != nil {
-		a.log.Error(fmt.Sprintf("invalid passphrase in config file — fix or delete %s and restart: %s", a.cfg.ConfigPath, err))
+		a.log.Error(fmt.Sprintf(
+			"invalid passphrase in config file — fix or delete %s and restart: %s",
+			a.cfg.ConfigPath,
+			err,
+		))
 		os.Exit(1)
 	}
 
@@ -99,7 +104,8 @@ func (a *App) Startup(ctx context.Context) {
 		if err := a.startNetworking(); err != nil {
 			a.log.Error("failed to start networking", "error", err)
 			if errors.Is(err, fmdns.ErrInterfaceNotFound) {
-				a.log.Error("the requested network interface is not available, please pass a valid network interface or skip the flag to auto discover")
+				a.log.Error("the requested network interface is not available, " +
+					"please pass a valid network interface or skip the flag to auto discover")
 				os.Exit(1)
 			}
 		}
@@ -228,9 +234,14 @@ func (a *App) startNetworking() error {
 		return fmt.Errorf("failed to start sync https server: %w", err)
 	}
 
-
 	host, _ := os.Hostname()
-	discoverer, err := fmdns.New(a.log, a.cfg.PeersPollInterval, host, a.passphraseStore, a.cfg.PeersMDNSInterface)
+	discoverer, err := fmdns.New(
+		a.log,
+		a.cfg.PeersPollInterval,
+		host,
+		a.passphraseStore,
+		a.cfg.PeersMDNSInterface,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to start mDNS discoverer: %w", err)
 	}

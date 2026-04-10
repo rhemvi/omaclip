@@ -24,7 +24,7 @@ A Wails desktop clipboard manager that tracks clipboard history and syncs across
 
 - In-memory only (no persistence across restarts)
 - Default max: 50 items, configurable via `OMACLIP_CLIPBOARD_MAX_HISTORY`
-- Supports text and images (max 5 MB per image); content type is either `"text"` or `"image"`
+- Supports text and images (max 25 MB per image); content type is either `"text"` or `"image"`
 - Images are normalised to PNG at ingestion (`image.Decode` + `png.Encode`) regardless of original format; stored as base64-encoded PNG in `ClipboardEntry.ImageData`; `ClipboardEntry.ImageMimeType` carries the MIME type (`"image/png"` after normalisation)
 - SHA-256 used for duplicate detection
 - Wayland-aware: uses `wl-paste`/`wl-copy` if available; falls back through xclip → xsel → macOS (`osascript`+`pbpaste` both required)

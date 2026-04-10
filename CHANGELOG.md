@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Refactored clipboard type parsing to use `strings.SplitSeq` iterator instead of `strings.Split`, avoiding intermediate slice allocation (contributed by [@ntavelis](https://github.com/ntavelis))
+- Max image size extracted from a hardcoded constant to the configuration struct, making it configurable alongside other clipboard settings (contributed by [@ntavelis](https://github.com/ntavelis))
+
 ## [0.2.0] - 2026-04-10
 
 ### Added

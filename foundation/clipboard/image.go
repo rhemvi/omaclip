@@ -25,7 +25,7 @@ type clipboardTypes struct {
 
 func parseClipboardTypes(raw string) clipboardTypes {
 	var ct clipboardTypes
-	for _, t := range strings.Split(strings.TrimSpace(raw), "\n") {
+	for t := range strings.SplitSeq(strings.TrimSpace(raw), "\n") {
 		t = strings.TrimSpace(t)
 		switch {
 		case t == "text/plain" || t == "STRING" || t == "UTF8_STRING":
