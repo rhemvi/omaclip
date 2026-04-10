@@ -241,14 +241,21 @@ func (m *Monitor) readClipboard() {
 			limitName = "max_non_png_image_mb"
 			maxMB = m.maxNonPngImageMB
 		}
+		sizeMB := fmt.Sprintf("%.2f", float64(len(imgData))/1024/1024)
 		if len(imgData) > maxMB*1024*1024 {
 			m.log.Warn(
 				"image rejected: exceeds size limit",
-				"size_mb", fmt.Sprintf("%.2f", float64(len(imgData))/1024/1024),
+				"size_mb", sizeMB,
 				"limit", limitName,
 				"limit_mb", maxMB,
 				"mime_type", mimeType,
 			)
+			m.addEntry(ClipboardEntry{
+				ID:          fmt.Sprintf("%d", time.Now().UnixNano()),
+				ContentType: "image-rejected",
+				Content:     fmt.Sprintf("Image rejected: %s MB exceeds %d MB limit (%s)", sizeMB, maxMB, mimeType),
+				Timestamp:   time.Now(),
+			})
 		} else {
 			m.addEntry(ClipboardEntry{
 				ID:            fmt.Sprintf("%d", time.Now().UnixNano()),

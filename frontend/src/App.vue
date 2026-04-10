@@ -66,14 +66,14 @@ function handleKeydown(e) {
   } else if (e.key === 'Enter' && store.selectedIndex >= 0) {
     e.preventDefault()
     const item = items[store.selectedIndex]
-    if (item) {
+    if (item && item.contentType !== 'image-rejected') {
       store.copyItem(item.id)
       if (store.expandedIds.has(item.id)) store.toggleExpanded(item.id)
     }
   } else if (e.key === ' ' && store.selectedIndex >= 0) {
     e.preventDefault()
     const item = items[store.selectedIndex]
-    if (item) store.toggleExpanded(item.id)
+    if (item && item.contentType !== 'image-rejected') store.toggleExpanded(item.id)
   } else if (e.key === 'Escape') {
     if (store.expandedIds.size > 0) {
       store.collapseAll()
@@ -87,7 +87,7 @@ function handleKeydown(e) {
     e.preventDefault()
     const idx = parseInt(e.key) - 1
     const item = items[idx]
-    if (item) store.copyItem(item.id)
+    if (item && item.contentType !== 'image-rejected') store.copyItem(item.id)
   }
 }
 

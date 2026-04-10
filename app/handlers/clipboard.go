@@ -36,10 +36,14 @@ func (h *ClipboardHandler) GetClipboard(w http.ResponseWriter, r *http.Request) 
 	limit := min(h.MaxHistory, len(all))
 	entries := all[:limit]
 
-	stripped := make([]clipboard.ClipboardEntry, len(entries))
-	for i, e := range entries {
-		stripped[i] = e
-		stripped[i].ImageData = ""
+	stripped := make([]clipboard.ClipboardEntry, 0, len(entries))
+	for _, e := range entries {
+		if e.ContentType == "image-rejected" {
+			continue
+		}
+		// Will fetch images with dedicated endpoint, so strip data from this response to save bandwidth
+		e.ImageData = ""
+		stripped = append(stripped, e)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

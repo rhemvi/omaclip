@@ -95,7 +95,16 @@ function formatTime(timestamp) {
 </script>
 
 <template>
-  <div ref="rowRef"
+  <div v-if="entry.contentType === 'image-rejected'" ref="rowRef"
+    class="flex items-start gap-3 px-4 py-3 border-b border-color8 opacity-60">
+    <span class="shrink-0 w-3 text-[10px] leading-4 text-color7 text-center">!</span>
+    <div class="flex-1 min-w-0">
+      <p class="text-sm text-color7 italic truncate">{{ entry.content }}</p>
+    </div>
+    <span class="shrink-0 text-xs text-color7 mt-0.5">{{ formatTime(entry.timestamp) }}</span>
+  </div>
+
+  <div v-else ref="rowRef"
     class="group relative flex items-start gap-3 px-4 py-3 border-b border-color8 cursor-pointer transition-colors"
     :class="[selected ? 'bg-color8/50' : '', keyboardActive ? '' : 'hover:bg-color8/50']" @click="handleCopy" @contextmenu.prevent="emit('toggle-expand')"
     @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">

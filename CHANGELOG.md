@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `OMACLIP_CLIPBOARD_MAX_PNG_IMAGE_MB` (default 5) for PNG images from the compositor (screenshots, browser copies)
   - `OMACLIP_CLIPBOARD_MAX_NON_PNG_IMAGE_MB` (default 2) for compressed formats like JPEG from file managers or macOS clipboard
 
+### Added
+
+- Rejected images now appear as warning entries in the clipboard history so the user knows why an image was not stored
+- Rejected image entries are not copyable (keyboard shortcuts skip them) and are excluded from remote sync
+
 ### Fixed
 
 - Sync endpoint now serves the actual image MIME type instead of hardcoding `image/png`
