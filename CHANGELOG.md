@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-10
+
 ### Changed
 
 - Images are now stored in their original format (JPEG, PNG, etc.) instead of being normalised to PNG on ingestion, significantly reducing memory usage and eliminating the ~7s conversion delay for large images
