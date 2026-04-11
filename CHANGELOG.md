@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-04-11
+
 ### Fixed
 
 - All backends: copying a file in a file manager no longer leaks the file path/URI into clipboard history
