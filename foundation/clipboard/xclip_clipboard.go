@@ -21,11 +21,9 @@ func (x XclipClipboard) GetText(ctx context.Context) (string, error) {
 		return "", nil
 	}
 
-	// If this is a copied image file, skip the text (just the filename/URI).
+	// If this is a copied file, skip the text (just the filename/URI).
 	if types.hasFileList {
-		if path := xclipFileImagePath(ctx); path != "" {
-			return "", nil
-		}
+		return "", nil
 	}
 
 	cmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-o")

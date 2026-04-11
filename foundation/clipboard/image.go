@@ -38,7 +38,7 @@ func parseClipboardTypes(raw string) clipboardTypes {
 	for t := range strings.SplitSeq(strings.TrimSpace(raw), "\n") {
 		t = strings.TrimSpace(t)
 		switch {
-		case t == "text/plain" || t == "STRING" || t == "UTF8_STRING":
+		case t == "text/plain" || strings.HasPrefix(t, "text/plain;") || t == "STRING" || t == "UTF8_STRING":
 			ct.hasText = true
 		case strings.HasPrefix(t, "image/"):
 			ct.hasImage = true

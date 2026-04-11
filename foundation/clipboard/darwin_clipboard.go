@@ -24,10 +24,7 @@ func (d DarwinClipboard) GetText(ctx context.Context) (string, error) {
 	}
 
 	if containsType(info, "«class furl»") || containsType(info, "public.file-url") {
-		path := d.fileURL(ctx)
-		if path != "" && isImageFile(path) {
-			return "", nil
-		}
+		return "", nil
 	}
 
 	cmd := exec.CommandContext(ctx, "pbpaste")

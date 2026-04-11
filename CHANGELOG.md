@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- All backends: copying a file in a file manager no longer leaks the file path/URI into clipboard history
+- Clipboard type detection now correctly matches `text/plain;charset=utf-8` as a text type
+
 ## [0.3.4] - 2026-04-11
 
 ### Fixed

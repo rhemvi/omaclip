@@ -29,11 +29,9 @@ func (w WaylandClipboard) GetText(ctx context.Context) (string, error) {
 		return "", nil
 	}
 
-	// If this is a copied image file, skip the text (just the filename/URI).
+	// If this is a copied file, skip the text (just the filename/URI).
 	if types.hasFileList {
-		if path := wlPasteFileImagePath(ctx); path != "" {
-			return "", nil
-		}
+		return "", nil
 	}
 
 	cmd := exec.CommandContext(ctx, "wl-paste", "--no-newline")
