@@ -9,6 +9,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.3.0
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/crypto v0.50.0
+	golang.org/x/image v0.39.0
 )
 
 require (

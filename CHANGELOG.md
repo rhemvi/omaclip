@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-04-11
+
+### Added
+
+- WebP, BMP, and TIFF image decoding support via `golang.org/x/image`; these formats are now correctly converted to PNG on copy-out
+- Rejected image entries are now highlighted on keyboard navigation and mouse hover, matching the selection style of regular entries
+
+### Fixed
+
+- Copy-out now falls back to the original MIME type when PNG conversion is not supported (e.g. AVIF, HEIC) instead of incorrectly labelling the data as `image/png`
+- `toPNG` now logs a warning when image format decoding fails instead of silently returning unconverted data
+
 ## [0.3.1] - 2026-04-10
 
 ### Fixed

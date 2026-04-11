@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -17,7 +18,14 @@ import (
 
 	_ "image/gif"
 	_ "image/jpeg"
+
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/tiff"
+	_ "golang.org/x/image/webp"
 )
+
+// ErrNoConversion is returned by toPNG when the image format is not supported for PNG conversion.
+var ErrNoConversion = errors.New("image format not supported for PNG conversion")
 
 // Reader abstracts clipboard reading so different implementations can be swapped in.
 type Reader interface {
@@ -38,23 +46,31 @@ type Watcher interface {
 
 // Monitor polls the system clipboard and maintains an in-memory history.
 type Monitor struct {
-	mu           sync.RWMutex
-	log          *slog.Logger
-	history      []ClipboardEntry
-	maxHistory   int
+	mu               sync.RWMutex
+	log              *slog.Logger
+	history          []ClipboardEntry
+	maxHistory       int
 	maxPngImageMB    int
 	maxNonPngImageMB int
-	pollInterval   time.Duration
-	lastSeen     string
-	lastSeenHash string
-	cancel       context.CancelFunc
-	reader       Reader
-	writer       Writer
-	OnNewEntry   func(ClipboardEntry)
+	pollInterval     time.Duration
+	lastSeen         string
+	lastSeenHash     string
+	cancel           context.CancelFunc
+	reader           Reader
+	writer           Writer
+	OnNewEntry       func(ClipboardEntry)
 }
 
 // NewMonitor creates a Monitor with the given reader, writer, capacity, and poll interval.
-func NewMonitor(log *slog.Logger, reader Reader, writer Writer, maxHistory int, maxPngImageMB int, maxNonPngImageMB int, pollInterval time.Duration) *Monitor {
+func NewMonitor(
+	log *slog.Logger,
+	reader Reader,
+	writer Writer,
+	maxHistory int,
+	maxPngImageMB int,
+	maxNonPngImageMB int,
+	pollInterval time.Duration,
+) *Monitor {
 	return &Monitor{
 		log:              log,
 		reader:           reader,
@@ -125,11 +141,15 @@ func (m *Monitor) CopyImage(imageDataBase64 string, mimeType string) error {
 	if err != nil {
 		return fmt.Errorf("decoding image data: %w", err)
 	}
-	pngBytes := toPNG(m.log, imgBytes)
-	if err := m.writer.SetImage(pngBytes, "image/png"); err != nil {
+	outBytes, convErr := toPNG(m.log, imgBytes)
+	outMime := "image/png"
+	if errors.Is(convErr, ErrNoConversion) {
+		outMime = mimeType
+	}
+	if err := m.writer.SetImage(outBytes, outMime); err != nil {
 		return err
 	}
-	m.lastSeenHash = sha256Hex(pngBytes)
+	m.lastSeenHash = sha256Hex(outBytes)
 	m.lastSeen = ""
 	return nil
 }
@@ -146,11 +166,15 @@ func (m *Monitor) CopyItem(id string) error {
 				if err != nil {
 					return fmt.Errorf("decoding image data: %w", err)
 				}
-				pngBytes := toPNG(m.log, imgBytes)
-				if err := m.writer.SetImage(pngBytes, "image/png"); err != nil {
+				outBytes, convErr := toPNG(m.log, imgBytes)
+				outMime := "image/png"
+				if errors.Is(convErr, ErrNoConversion) {
+					outMime = entry.ImageMimeType
+				}
+				if err := m.writer.SetImage(outBytes, outMime); err != nil {
 					return err
 				}
-				m.lastSeenHash = sha256Hex(pngBytes)
+				m.lastSeenHash = sha256Hex(outBytes)
 				m.lastSeen = ""
 				return nil
 			}
@@ -269,22 +293,28 @@ func (m *Monitor) readClipboard() {
 }
 
 // toPNG decodes image bytes of any supported format and re-encodes them as PNG for clipboard compatibility.
-// If the data is already PNG, it is returned as-is.
-func toPNG(log *slog.Logger, data []byte) []byte {
+// If the data is already PNG, it is returned as-is with a nil error.
+// Returns ErrNoConversion if the format is not supported or encoding fails; the original bytes are returned unchanged.
+func toPNG(log *slog.Logger, data []byte) ([]byte, error) {
 	sizeMB := fmt.Sprintf("%.2f", float64(len(data))/1024/1024)
 	if http.DetectContentType(data) == "image/png" {
 		log.Info("copy out: image already PNG, skipping conversion", "size_mb", sizeMB)
-		return data
+		return data, nil
 	}
 	start := time.Now()
 	img, format, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return data
+		log.Warn("copy out: image format not supported for PNG conversion, using original data",
+			"mime_type", http.DetectContentType(data),
+			"error", err,
+		)
+		return data, ErrNoConversion
 	}
 	var buf bytes.Buffer
 	enc := &png.Encoder{CompressionLevel: png.BestSpeed}
 	if err := enc.Encode(&buf, img); err != nil {
-		return data
+		log.Warn("copy out: failed to encode image as PNG, using original data", "error", err)
+		return data, ErrNoConversion
 	}
 	log.Info("copy out: converted image to PNG for clipboard compatibility",
 		"original_format", format,
@@ -292,7 +322,7 @@ func toPNG(log *slog.Logger, data []byte) []byte {
 		"png_mb", fmt.Sprintf("%.2f", float64(buf.Len())/1024/1024),
 		"duration", time.Since(start),
 	)
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
 // addEntry appends a new entry to history, trimming to maxHistory, then notifies the callback.
