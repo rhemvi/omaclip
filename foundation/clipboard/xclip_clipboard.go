@@ -2,6 +2,7 @@ package clipboard
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -13,8 +14,8 @@ import (
 type XclipClipboard struct{}
 
 // GetText returns the current clipboard text using xclip. Returns empty if the clipboard only contains non-text types.
-func (x XclipClipboard) GetText() (string, error) {
-	types := x.clipboardTypes()
+func (x XclipClipboard) GetText(ctx context.Context) (string, error) {
+	types := x.clipboardTypes(ctx)
 
 	if !types.hasText {
 		return "", nil
@@ -22,12 +23,12 @@ func (x XclipClipboard) GetText() (string, error) {
 
 	// If this is a copied image file, skip the text (just the filename/URI).
 	if types.hasFileList {
-		if path := xclipFileImagePath(); path != "" {
+		if path := xclipFileImagePath(ctx); path != "" {
 			return "", nil
 		}
 	}
 
-	cmd := exec.Command("xclip", "-selection", "clipboard", "-o")
+	cmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-o")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("xclip: %w", err)
@@ -36,13 +37,14 @@ func (x XclipClipboard) GetText() (string, error) {
 }
 
 // GetImage returns image bytes from the clipboard. It reads the original file
-// when a file URI is present (file manager copy), otherwise reads image/png.
-func (x XclipClipboard) GetImage() ([]byte, error) {
-	types := x.clipboardTypes()
+// when a file URI is present (file manager copy), otherwise reads the best
+// available image type (preferring PNG).
+func (x XclipClipboard) GetImage(ctx context.Context) ([]byte, error) {
+	types := x.clipboardTypes(ctx)
 
 	// If a file URI is present and points to an image, read it directly.
 	if types.hasFileList {
-		if path := xclipFileImagePath(); path != "" {
+		if path := xclipFileImagePath(ctx); path != "" {
 			data, err := os.ReadFile(path)
 			if err == nil {
 				return data, nil
@@ -59,16 +61,17 @@ func (x XclipClipboard) GetImage() ([]byte, error) {
 		return nil, nil
 	}
 
-	imgCmd := exec.Command("xclip", "-selection", "clipboard", "-t", "image/png", "-o")
+	imgType := types.bestImageType()
+	imgCmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-t", imgType, "-o")
 	imgData, err := imgCmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("xclip image/png: %w", err)
+		return nil, fmt.Errorf("xclip %s: %w", imgType, err)
 	}
 	return imgData, nil
 }
 
-func (x XclipClipboard) clipboardTypes() clipboardTypes {
-	typesCmd := exec.Command("xclip", "-selection", "clipboard", "-t", "TARGETS", "-o")
+func (x XclipClipboard) clipboardTypes(ctx context.Context) clipboardTypes {
+	typesCmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-t", "TARGETS", "-o")
 	typesOut, err := typesCmd.Output()
 	if err != nil {
 		return clipboardTypes{}
@@ -78,8 +81,8 @@ func (x XclipClipboard) clipboardTypes() clipboardTypes {
 
 // xclipFileImagePath reads text/uri-list from the clipboard and returns the
 // local file path if it points to a single image file.
-func xclipFileImagePath() string {
-	cmd := exec.Command("xclip", "-selection", "clipboard", "-t", "text/uri-list", "-o")
+func xclipFileImagePath(ctx context.Context) string {
+	cmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-t", "text/uri-list", "-o")
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -102,8 +105,8 @@ func xclipFileImagePath() string {
 }
 
 // SetText writes text to the clipboard using xclip.
-func (x XclipClipboard) SetText(text string) error {
-	cmd := exec.Command("xclip", "-selection", "clipboard")
+func (x XclipClipboard) SetText(ctx context.Context, text string) error {
+	cmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard")
 	cmd.Stdin = strings.NewReader(text)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("xclip: %w", err)
@@ -112,8 +115,8 @@ func (x XclipClipboard) SetText(text string) error {
 }
 
 // SetImage writes image data to the clipboard using xclip.
-func (x XclipClipboard) SetImage(data []byte, mimeType string) error {
-	cmd := exec.Command("xclip", "-selection", "clipboard", "-t", mimeType)
+func (x XclipClipboard) SetImage(ctx context.Context, data []byte, mimeType string) error {
+	cmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-t", mimeType)
 	cmd.Stdin = bytes.NewReader(data)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("xclip image: %w", err)

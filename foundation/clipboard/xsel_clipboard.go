@@ -1,6 +1,7 @@
 package clipboard
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -11,8 +12,8 @@ import (
 type XselClipboard struct{}
 
 // GetText returns the current clipboard contents using xsel.
-func (x XselClipboard) GetText() (string, error) {
-	cmd := exec.Command("xsel", "--clipboard", "--output")
+func (x XselClipboard) GetText(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "xsel", "--clipboard", "--output")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("xsel: %w", err)
@@ -21,13 +22,13 @@ func (x XselClipboard) GetText() (string, error) {
 }
 
 // GetImage always returns nil — xsel does not support image clipboard operations.
-func (x XselClipboard) GetImage() ([]byte, error) {
+func (x XselClipboard) GetImage(ctx context.Context) ([]byte, error) {
 	return nil, nil
 }
 
 // SetText writes text to the clipboard using xsel.
-func (x XselClipboard) SetText(text string) error {
-	cmd := exec.Command("xsel", "--clipboard", "--input")
+func (x XselClipboard) SetText(ctx context.Context, text string) error {
+	cmd := exec.CommandContext(ctx, "xsel", "--clipboard", "--input")
 	cmd.Stdin = strings.NewReader(text)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("xsel: %w", err)
@@ -36,6 +37,6 @@ func (x XselClipboard) SetText(text string) error {
 }
 
 // SetImage always returns an error — xsel does not support image clipboard operations.
-func (x XselClipboard) SetImage(data []byte, mimeType string) error {
+func (x XselClipboard) SetImage(ctx context.Context, data []byte, mimeType string) error {
 	return ErrNotImplemented
 }

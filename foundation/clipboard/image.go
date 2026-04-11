@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+// preferredImageTypes lists clipboard image MIME types in order of preference.
+var preferredImageTypes = []string{
+	"image/png",
+	"image/jpeg",
+	"image/bmp",
+	"image/tiff",
+	"image/webp",
+}
+
 var imageFileExtensions = []string{
 	".png", ".jpg", ".jpeg",
 	".gif", ".bmp", ".tiff", ".tif",
@@ -13,7 +22,7 @@ var imageFileExtensions = []string{
 }
 
 func isImageFile(path string) bool {
-	ext := filepath.Ext(path)
+	ext := strings.ToLower(filepath.Ext(path))
 	return slices.Contains(imageFileExtensions, ext)
 }
 
@@ -21,6 +30,7 @@ type clipboardTypes struct {
 	hasText     bool
 	hasImage    bool
 	hasFileList bool
+	imageTypes  []string
 }
 
 func parseClipboardTypes(raw string) clipboardTypes {
@@ -32,9 +42,24 @@ func parseClipboardTypes(raw string) clipboardTypes {
 			ct.hasText = true
 		case strings.HasPrefix(t, "image/"):
 			ct.hasImage = true
+			ct.imageTypes = append(ct.imageTypes, t)
 		case t == "text/uri-list" || t == "x-special/gnome-copied-files":
 			ct.hasFileList = true
 		}
 	}
 	return ct
+}
+
+// bestImageType returns the preferred image MIME type from those available on
+// the clipboard, falling back to "image/png" if none of the preferred types match.
+func (ct clipboardTypes) bestImageType() string {
+	for _, pref := range preferredImageTypes {
+		if slices.Contains(ct.imageTypes, pref) {
+			return pref
+		}
+	}
+	if len(ct.imageTypes) > 0 {
+		return ct.imageTypes[0]
+	}
+	return "image/png"
 }

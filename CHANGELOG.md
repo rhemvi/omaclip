@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-04-11
+
+### Added
+
+- Wayland and xclip backends now read the best available image format from the clipboard (preferring PNG, then JPEG, BMP, TIFF, WEBP) instead of only requesting `image/png`
+
+### Fixed
+
+- Image file detection (`isImageFile`) is now case-insensitive so files with uppercase extensions (`.PNG`, `.JPG`, `.HEIC`) are correctly recognised
+- All clipboard backend exec calls now use `context.WithTimeout` (2s) to prevent the polling loop from hanging indefinitely if a clipboard binary stalls
+
 ## [0.3.2] - 2026-04-11
 
 ### Added

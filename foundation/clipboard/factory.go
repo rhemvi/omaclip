@@ -1,6 +1,7 @@
 package clipboard
 
 import (
+	"context"
 	"errors"
 	"os/exec"
 )
@@ -12,14 +13,14 @@ var (
 
 // Reader abstracts clipboard reading across platform backends.
 type Reader interface {
-	GetText() (string, error)
-	GetImage() ([]byte, error)
+	GetText(ctx context.Context) (string, error)
+	GetImage(ctx context.Context) ([]byte, error)
 }
 
 // Writer abstracts clipboard writing across platform backends.
 type Writer interface {
-	SetText(text string) error
-	SetImage(data []byte, mimeType string) error
+	SetText(ctx context.Context, text string) error
+	SetImage(ctx context.Context, data []byte, mimeType string) error
 }
 
 // NewReaderWriter returns the first available clipboard reader and writer by probing known binaries in order:

@@ -29,15 +29,18 @@ var ErrNoConversion = errors.New("image format not supported for PNG conversion"
 
 // Reader abstracts clipboard reading so different implementations can be swapped in.
 type Reader interface {
-	GetText() (string, error)
-	GetImage() ([]byte, error)
+	GetText(ctx context.Context) (string, error)
+	GetImage(ctx context.Context) ([]byte, error)
 }
 
 // Writer abstracts clipboard writing so different implementations can be swapped in.
 type Writer interface {
-	SetText(text string) error
-	SetImage(data []byte, mimeType string) error
+	SetText(ctx context.Context, text string) error
+	SetImage(ctx context.Context, data []byte, mimeType string) error
 }
+
+// cmdTimeout is the maximum time allowed for a single clipboard read or write operation.
+const cmdTimeout = 2 * time.Second
 
 // Watcher is optionally implemented by clipboard backends that support event-driven change notifications instead of polling.
 type Watcher interface {
@@ -146,7 +149,9 @@ func (m *Monitor) CopyImage(imageDataBase64 string, mimeType string) error {
 	if errors.Is(convErr, ErrNoConversion) {
 		outMime = mimeType
 	}
-	if err := m.writer.SetImage(outBytes, outMime); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+	defer cancel()
+	if err := m.writer.SetImage(ctx, outBytes, outMime); err != nil {
 		return err
 	}
 	m.lastSeenHash = sha256Hex(outBytes)
@@ -158,6 +163,9 @@ func (m *Monitor) CopyImage(imageDataBase64 string, mimeType string) error {
 func (m *Monitor) CopyItem(id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+	defer cancel()
 
 	for _, entry := range m.history {
 		if entry.ID == id {
@@ -171,14 +179,14 @@ func (m *Monitor) CopyItem(id string) error {
 				if errors.Is(convErr, ErrNoConversion) {
 					outMime = entry.ImageMimeType
 				}
-				if err := m.writer.SetImage(outBytes, outMime); err != nil {
+				if err := m.writer.SetImage(ctx, outBytes, outMime); err != nil {
 					return err
 				}
 				m.lastSeenHash = sha256Hex(outBytes)
 				m.lastSeen = ""
 				return nil
 			}
-			if err := m.writer.SetText(entry.Content); err != nil {
+			if err := m.writer.SetText(ctx, entry.Content); err != nil {
 				return err
 			}
 			m.lastSeen = entry.Content
@@ -193,7 +201,9 @@ func (m *Monitor) CopyItem(id string) error {
 func (m *Monitor) CopyText(text string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if err := m.writer.SetText(text); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), cmdTimeout)
+	defer cancel()
+	if err := m.writer.SetText(ctx, text); err != nil {
 		return err
 	}
 	m.lastSeen = text
@@ -215,7 +225,7 @@ func (m *Monitor) poll(ctx context.Context, watchCh <-chan struct{}) {
 		case <-ctx.Done():
 			return
 		case <-tickerCh:
-			m.readClipboard()
+			m.readClipboard(ctx)
 		case _, ok := <-watchCh:
 			if !ok {
 				m.log.Warn("clipboard watcher stopped, falling back to polling")
@@ -225,17 +235,20 @@ func (m *Monitor) poll(ctx context.Context, watchCh <-chan struct{}) {
 				defer ticker.Stop()
 				continue
 			}
-			m.readClipboard()
+			m.readClipboard(ctx)
 		}
 	}
 }
 
 // readClipboard checks the system clipboard for new text or image content and adds it to history.
-func (m *Monitor) readClipboard() {
-	text, err := m.reader.GetText()
+func (m *Monitor) readClipboard(parent context.Context) {
+	ctx, cancel := context.WithTimeout(parent, cmdTimeout)
+	defer cancel()
+
+	text, err := m.reader.GetText(ctx)
 	textChanged := err == nil && text != "" && text != m.lastSeen
 
-	imgData, imgErr := m.reader.GetImage()
+	imgData, imgErr := m.reader.GetImage(ctx)
 	var imgHash string
 	if imgErr == nil && len(imgData) > 0 {
 		imgHash = sha256Hex(imgData)

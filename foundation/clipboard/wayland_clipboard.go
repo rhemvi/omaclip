@@ -16,8 +16,8 @@ import (
 type WaylandClipboard struct{}
 
 // GetText returns the current clipboard contents using wl-paste. Returns empty if the clipboard only contains non-text types (e.g. image).
-func (w WaylandClipboard) GetText() (string, error) {
-	typesCmd := exec.Command("wl-paste", "--list-types")
+func (w WaylandClipboard) GetText(ctx context.Context) (string, error) {
+	typesCmd := exec.CommandContext(ctx, "wl-paste", "--list-types")
 	typesOut, err := typesCmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("wl-paste --list-types: %w", err)
@@ -31,12 +31,12 @@ func (w WaylandClipboard) GetText() (string, error) {
 
 	// If this is a copied image file, skip the text (just the filename/URI).
 	if types.hasFileList {
-		if path := wlPasteFileImagePath(); path != "" {
+		if path := wlPasteFileImagePath(ctx); path != "" {
 			return "", nil
 		}
 	}
 
-	cmd := exec.Command("wl-paste", "--no-newline")
+	cmd := exec.CommandContext(ctx, "wl-paste", "--no-newline")
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("wl-paste: %w", err)
@@ -45,9 +45,10 @@ func (w WaylandClipboard) GetText() (string, error) {
 }
 
 // GetImage returns image bytes from the clipboard. It reads the original file
-// when a file URI is present (file manager copy), otherwise reads image/png.
-func (w WaylandClipboard) GetImage() ([]byte, error) {
-	cmd := exec.Command("wl-paste", "--list-types")
+// when a file URI is present (file manager copy), otherwise reads the best
+// available image type (preferring PNG).
+func (w WaylandClipboard) GetImage(ctx context.Context) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "wl-paste", "--list-types")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("wl-paste --list-types: %w", err)
@@ -57,7 +58,7 @@ func (w WaylandClipboard) GetImage() ([]byte, error) {
 
 	// If a file URI is present and points to an image, read it directly.
 	if types.hasFileList {
-		if path := wlPasteFileImagePath(); path != "" {
+		if path := wlPasteFileImagePath(ctx); path != "" {
 			data, err := os.ReadFile(path)
 			if err == nil {
 				return data, nil
@@ -74,17 +75,18 @@ func (w WaylandClipboard) GetImage() ([]byte, error) {
 		return nil, nil
 	}
 
-	imgCmd := exec.Command("wl-paste", "--type", "image/png")
+	imgType := types.bestImageType()
+	imgCmd := exec.CommandContext(ctx, "wl-paste", "--type", imgType)
 	imgData, err := imgCmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("wl-paste image/png: %w", err)
+		return nil, fmt.Errorf("wl-paste %s: %w", imgType, err)
 	}
 	return imgData, nil
 }
 
 // SetText writes text to the clipboard using wl-copy.
-func (w WaylandClipboard) SetText(text string) error {
-	cmd := exec.Command("wl-copy")
+func (w WaylandClipboard) SetText(ctx context.Context, text string) error {
+	cmd := exec.CommandContext(ctx, "wl-copy")
 	cmd.Stdin = strings.NewReader(text)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("wl-copy: %w", err)
@@ -121,8 +123,8 @@ func (w WaylandClipboard) Watch(ctx context.Context, notify chan<- struct{}) err
 
 // wlPasteFileImagePath reads text/uri-list from the clipboard and returns the
 // local file path if it points to a single image file.
-func wlPasteFileImagePath() string {
-	cmd := exec.Command("wl-paste", "--type", "text/uri-list")
+func wlPasteFileImagePath(ctx context.Context) string {
+	cmd := exec.CommandContext(ctx, "wl-paste", "--type", "text/uri-list")
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -145,8 +147,8 @@ func wlPasteFileImagePath() string {
 }
 
 // SetImage writes image data to the clipboard using wl-copy.
-func (w WaylandClipboard) SetImage(data []byte, mimeType string) error {
-	cmd := exec.Command("wl-copy", "--type", mimeType)
+func (w WaylandClipboard) SetImage(ctx context.Context, data []byte, mimeType string) error {
+	cmd := exec.CommandContext(ctx, "wl-copy", "--type", mimeType)
 	cmd.Stdin = bytes.NewReader(data)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("wl-copy image: %w", err)
