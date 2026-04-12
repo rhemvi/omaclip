@@ -216,8 +216,8 @@ func (d DarwinClipboard) changeCount(ctx context.Context) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "osascript", "-e",
-		"the (change count of the pasteboard) as string")
+	cmd := exec.CommandContext(ctx, "osascript", "-l", "JavaScript", "-e",
+		`ObjC.import("AppKit"); $.NSPasteboard.generalPasteboard.changeCount`)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("osascript change count: %w", err)

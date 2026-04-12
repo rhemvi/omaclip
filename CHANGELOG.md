@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- macOS clipboard watcher used invalid AppleScript to read pasteboard change count, causing it to fail and fall back to polling
+
 ## [0.4.0] - 2026-04-12
 
 ### Added
