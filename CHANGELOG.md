@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-12
+
+### Added
+
+- macOS clipboard watcher that polls the pasteboard change count, avoiding expensive clipboard reads when nothing has changed
+- `io.LimitReader` protection on all pipe-based clipboard reads (`wl-paste`, `xclip`, `xsel`, `pbpaste`) to prevent unbounded memory usage
+
+### Changed
+
+- Oversized images are now rejected before loading into memory; backends check file/pipe size early instead of reading the full payload first
+
+### Fixed
+
+- macOS image read errors are now propagated and logged instead of being silently dropped
+
 ## [0.3.5] - 2026-04-11
 
 ### Fixed
