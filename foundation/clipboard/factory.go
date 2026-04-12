@@ -39,7 +39,8 @@ func NewReaderWriter(maxPngImageMB, maxNonPngImageMB int) (Reader, Writer, strin
 		x := XclipClipboard{imgReader: imgReader}
 		return x, x, "x11 (xclip)", nil
 	case availableFn("xsel"):
-		s := XselClipboard{}
+		maxText := max(imgReader.MaxPngBytes(), imgReader.MaxNonPngBytes())
+		s := XselClipboard{maxTextBytes: maxText}
 		return s, s, "x11 (xsel)", nil
 	case availableFn("osascript") && availableFn("pbpaste"):
 		o := DarwinClipboard{imgReader: imgReader}

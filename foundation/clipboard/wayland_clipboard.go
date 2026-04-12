@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"os/exec"
@@ -39,7 +38,8 @@ func (w WaylandClipboard) GetText(ctx context.Context) (string, error) {
 	}
 
 	cmd := exec.CommandContext(ctx, "wl-paste", "--no-newline")
-	out, err := cmd.Output()
+	maxText := max(w.imgReader.MaxPngBytes(), w.imgReader.MaxNonPngBytes())
+	out, err := readCommandOutput(cmd, maxText)
 	if err != nil {
 		return "", fmt.Errorf("wl-paste: %w", err)
 	}
@@ -61,13 +61,7 @@ func (w WaylandClipboard) GetImage(ctx context.Context) ([]byte, error) {
 	// If a file URI is present and points to an image, read it directly.
 	if types.hasFileList {
 		if path := wlPasteFileImagePath(ctx); path != "" {
-			data, err := w.imgReader.ReadImageFile(path)
-			if err == nil {
-				return data, nil
-			}
-			if errors.Is(err, imagefilereader.ErrImageTooLarge) {
-				return nil, err
-			}
+			return w.imgReader.ReadImageFile(path)
 		}
 	}
 
@@ -81,8 +75,12 @@ func (w WaylandClipboard) GetImage(ctx context.Context) ([]byte, error) {
 	}
 
 	imgType := types.bestImageType()
+	maxImg := w.imgReader.MaxNonPngBytes()
+	if imgType == "image/png" {
+		maxImg = w.imgReader.MaxPngBytes()
+	}
 	imgCmd := exec.CommandContext(ctx, "wl-paste", "--type", imgType)
-	imgData, err := imgCmd.Output()
+	imgData, err := readCommandOutput(imgCmd, maxImg)
 	if err != nil {
 		return nil, fmt.Errorf("wl-paste %s: %w", imgType, err)
 	}

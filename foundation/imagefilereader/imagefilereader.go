@@ -33,6 +33,12 @@ func NewReader(maxPngImageMB, maxNonPngImageMB int) Reader {
 	}
 }
 
+// MaxPngBytes returns the configured maximum size in bytes for PNG images.
+func (r Reader) MaxPngBytes() int64 { return r.maxPngBytes }
+
+// MaxNonPngBytes returns the configured maximum size in bytes for non-PNG images.
+func (r Reader) MaxNonPngBytes() int64 { return r.maxNonPngBytes }
+
 // IsImage reports whether path has a known image file extension.
 func IsImage(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))

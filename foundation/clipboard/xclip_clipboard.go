@@ -3,7 +3,6 @@ package clipboard
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"os/exec"
@@ -31,7 +30,8 @@ func (x XclipClipboard) GetText(ctx context.Context) (string, error) {
 	}
 
 	cmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-o")
-	out, err := cmd.Output()
+	maxText := max(x.imgReader.MaxPngBytes(), x.imgReader.MaxNonPngBytes())
+	out, err := readCommandOutput(cmd, maxText)
 	if err != nil {
 		return "", fmt.Errorf("xclip: %w", err)
 	}
@@ -47,13 +47,7 @@ func (x XclipClipboard) GetImage(ctx context.Context) ([]byte, error) {
 	// If a file URI is present and points to an image, read it directly.
 	if types.hasFileList {
 		if path := xclipFileImagePath(ctx); path != "" {
-			data, err := x.imgReader.ReadImageFile(path)
-			if err == nil {
-				return data, nil
-			}
-			if errors.Is(err, imagefilereader.ErrImageTooLarge) {
-				return nil, err
-			}
+			return x.imgReader.ReadImageFile(path)
 		}
 	}
 
@@ -67,8 +61,12 @@ func (x XclipClipboard) GetImage(ctx context.Context) ([]byte, error) {
 	}
 
 	imgType := types.bestImageType()
+	maxImg := x.imgReader.MaxNonPngBytes()
+	if imgType == "image/png" {
+		maxImg = x.imgReader.MaxPngBytes()
+	}
 	imgCmd := exec.CommandContext(ctx, "xclip", "-selection", "clipboard", "-t", imgType, "-o")
-	imgData, err := imgCmd.Output()
+	imgData, err := readCommandOutput(imgCmd, maxImg)
 	if err != nil {
 		return nil, fmt.Errorf("xclip %s: %w", imgType, err)
 	}

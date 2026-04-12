@@ -9,12 +9,14 @@ import (
 
 // XselClipboard reads and writes the system clipboard via xsel (X11).
 // xsel is text-only — it does not support image clipboard operations or MIME type listing.
-type XselClipboard struct{}
+type XselClipboard struct {
+	maxTextBytes int64
+}
 
 // GetText returns the current clipboard contents using xsel.
 func (x XselClipboard) GetText(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "xsel", "--clipboard", "--output")
-	out, err := cmd.Output()
+	out, err := readCommandOutput(cmd, x.maxTextBytes)
 	if err != nil {
 		return "", fmt.Errorf("xsel: %w", err)
 	}

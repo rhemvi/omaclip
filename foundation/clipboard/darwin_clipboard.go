@@ -2,11 +2,11 @@ package clipboard
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/rhemvi/omaclip/foundation/imagefilereader"
 )
@@ -33,7 +33,8 @@ func (d DarwinClipboard) GetText(ctx context.Context) (string, error) {
 	}
 
 	cmd := exec.CommandContext(ctx, "pbpaste")
-	out, err := cmd.Output()
+	maxText := max(d.imgReader.MaxPngBytes(), d.imgReader.MaxNonPngBytes())
+	out, err := readCommandOutput(cmd, maxText)
 	if err != nil {
 		return "", fmt.Errorf("pbpaste: %w", err)
 	}
@@ -53,13 +54,7 @@ func (d DarwinClipboard) GetImage(ctx context.Context) ([]byte, error) {
 		path := d.fileURL(ctx)
 		if path != "" {
 			if imagefilereader.IsImage(path) {
-				data, err := d.imgReader.ReadImageFile(path)
-				if err == nil {
-					return data, nil
-				}
-				if errors.Is(err, imagefilereader.ErrImageTooLarge) {
-					return nil, err
-				}
+				return d.imgReader.ReadImageFile(path)
 			}
 			return nil, nil
 		}
@@ -157,11 +152,77 @@ close access fileRef`, f.Name(), clipClass)
 		return nil, fmt.Errorf("osascript read clipboard image: %w", err)
 	}
 
+	info, statErr := os.Stat(f.Name())
+	if statErr != nil {
+		return nil, fmt.Errorf("stat temp file: %w", statErr)
+	}
+
+	maxBytes := d.imgReader.MaxNonPngBytes()
+	if strings.HasSuffix(strings.ToLower(tmpPattern), ".png") {
+		maxBytes = d.imgReader.MaxPngBytes()
+	}
+
+	if info.Size() > maxBytes {
+		return nil, fmt.Errorf(
+			"%w: clipboard image is %.2f MB, limit is %d MB",
+			errOutputTooLarge, float64(info.Size())/(1024*1024), maxBytes/(1024*1024),
+		)
+	}
+
 	data, err := os.ReadFile(f.Name())
 	if err != nil {
 		return nil, fmt.Errorf("reading temp file: %w", err)
 	}
 	return data, nil
+}
+
+// Watch polls the macOS pasteboard change count and sends a signal on notify each time it changes. The poll loop runs in a background goroutine until ctx is cancelled.
+func (d DarwinClipboard) Watch(ctx context.Context, notify chan<- struct{}) error {
+	count, err := d.changeCount(ctx)
+	if err != nil {
+		return fmt.Errorf("initial pasteboard change count: %w", err)
+	}
+
+	go func() {
+		defer close(notify)
+		lastCount := count
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				count, err := d.changeCount(ctx)
+				if err != nil {
+					continue
+				}
+				if count != lastCount {
+					lastCount = count
+					select {
+					case notify <- struct{}{}:
+					default:
+					}
+				}
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (d DarwinClipboard) changeCount(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "osascript", "-e",
+		"the (change count of the pasteboard) as string")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("osascript change count: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func containsType(info, typeName string) bool {
