@@ -20,16 +20,11 @@ type DarwinClipboard struct {
 
 // GetText returns the current clipboard text using pbpaste. Returns empty if the clipboard only contains non-text types.
 func (d DarwinClipboard) GetText(ctx context.Context) (string, error) {
-	info, err := d.clipboardInfo(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	if !containsType(info, "public.utf8-plain-text") && !containsType(info, "«class utf8»") {
+	if d.clipboardTypeSize(ctx, "«class furl»") > 0 {
 		return "", nil
 	}
 
-	if containsType(info, "«class furl»") || containsType(info, "public.file-url") {
+	if d.clipboardTypeSize(ctx, "«class utf8»") == 0 {
 		return "", nil
 	}
 
@@ -46,12 +41,7 @@ func (d DarwinClipboard) GetText(ctx context.Context) (string, error) {
 // original file when a file URL is present (Finder copy), falling back to
 // PNG clipboard data, then JPEG.
 func (d DarwinClipboard) GetImage(ctx context.Context) ([]byte, error) {
-	info, err := d.clipboardInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if containsType(info, "«class furl»") || containsType(info, "public.file-url") {
+	if d.clipboardTypeSize(ctx, "«class furl»") > 0 {
 		path := d.fileURL(ctx)
 		if path != "" {
 			if imagefilereader.IsImage(path) {
@@ -61,8 +51,8 @@ func (d DarwinClipboard) GetImage(ctx context.Context) ([]byte, error) {
 		}
 	}
 
-	if containsType(info, "PNGf") {
-		if size := typeSize(info, "PNGf"); size > d.imgReader.MaxPngBytes() {
+	if size := d.clipboardTypeSize(ctx, "«class PNGf»"); size > 0 {
+		if size > d.imgReader.MaxPngBytes() {
 			return nil, fmt.Errorf(
 				"%w: clipboard PNG is %.2f MB, limit is %d MB",
 				imagefilereader.ErrImageTooLarge, float64(size)/(1024*1024), d.imgReader.MaxPngBytes()/(1024*1024),
@@ -77,8 +67,8 @@ func (d DarwinClipboard) GetImage(ctx context.Context) ([]byte, error) {
 		}
 	}
 
-	if containsType(info, "JPEG picture") {
-		if size := typeSize(info, "JPEG picture"); size > d.imgReader.MaxNonPngBytes() {
+	if size := d.clipboardTypeSize(ctx, "JPEG picture"); size > 0 {
+		if size > d.imgReader.MaxNonPngBytes() {
 			return nil, fmt.Errorf(
 				"%w: clipboard JPEG is %.2f MB, limit is %d MB",
 				imagefilereader.ErrImageTooLarge, float64(size)/(1024*1024), d.imgReader.MaxNonPngBytes()/(1024*1024),
@@ -128,13 +118,31 @@ func (d DarwinClipboard) SetImage(ctx context.Context, data []byte, mimeType str
 	return nil
 }
 
-func (d DarwinClipboard) clipboardInfo(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "osascript", "-e", "clipboard info")
+// clipboardTypeSize queries the byte count for a specific clipboard type using clipboard info for.
+// Returns 0 if the type is not present or the query fails.
+func (d DarwinClipboard) clipboardTypeSize(ctx context.Context, typeExpr string) int64 {
+	script := fmt.Sprintf("clipboard info for %s", typeExpr)
+	cmd := exec.CommandContext(ctx, "osascript", "-e", script)
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("osascript clipboard info: %w", err)
+		return 0
 	}
-	return string(out), nil
+	return parseTypeSize(string(out))
+}
+
+// parseTypeSize extracts the byte count from a single clipboard info for output line.
+// Format: "«class PNGf», 10845271\n"
+func parseTypeSize(output string) int64 {
+	s := strings.TrimSpace(output)
+	i := strings.LastIndex(s, ", ")
+	if i < 0 {
+		return 0
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(s[i+2:]), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 func (d DarwinClipboard) fileURL(ctx context.Context) string {
@@ -236,37 +244,4 @@ func (d DarwinClipboard) changeCount(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("osascript change count: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil
-}
-
-func containsType(info, typeName string) bool {
-	return strings.Contains(info, typeName)
-}
-
-// typeSize extracts the byte count for a given type name from clipboard info output.
-// Format: "«class PNGf», 10845271, JPEG picture, 1522509, ..."
-// Returns 0 if the type is not found or the size cannot be parsed.
-func typeSize(info, typeName string) int64 {
-	idx := strings.Index(info, typeName)
-	if idx < 0 {
-		return 0
-	}
-	rest := info[idx+len(typeName):]
-	// Skip any non-digit characters (e.g. "»", ",", " ") to reach the byte count.
-	start := 0
-	for start < len(rest) && (rest[start] < '0' || rest[start] > '9') {
-		start++
-	}
-	rest = rest[start:]
-	end := 0
-	for end < len(rest) && rest[end] >= '0' && rest[end] <= '9' {
-		end++
-	}
-	if end == 0 {
-		return 0
-	}
-	n, err := strconv.ParseInt(rest[:end], 10, 64)
-	if err != nil {
-		return 0
-	}
-	return n
 }

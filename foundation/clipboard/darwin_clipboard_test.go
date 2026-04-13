@@ -2,38 +2,27 @@ package clipboard
 
 import "testing"
 
-func TestTypeSize(t *testing.T) {
-	info := "«class PNGf», 10845271, «class utf8», 42, JPEG picture, 1522509, «class furl», 100"
-
+func TestParseClipboardTypeSize(t *testing.T) {
 	tests := []struct {
-		name     string
-		typeName string
-		want     int64
+		name   string
+		output string
+		want   int64
 	}{
-		{"PNGf", "PNGf", 10845271},
-		{"JPEG", "JPEG picture", 1522509},
-		{"utf8", "utf8", 42},
-		{"furl", "furl", 100},
-		{"not found", "TIFF", 0},
+		{"PNGf", "«class PNGf», 10845271\n", 10845271},
+		{"JPEG", "JPEG picture, 1522509\n", 1522509},
+		{"utf8", "«class utf8», 42\n", 42},
+		{"furl", "«class furl», 100\n", 100},
+		{"empty output", "", 0},
+		{"no comma", "«class PNGf»", 0},
+		{"no number", "«class PNGf», \n", 0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := typeSize(info, tt.typeName); got != tt.want {
-				t.Errorf("typeSize(%q) = %d, want %d", tt.typeName, got, tt.want)
+			got := parseTypeSize(tt.output)
+			if got != tt.want {
+				t.Errorf("parseTypeSize(%q) = %d, want %d", tt.output, got, tt.want)
 			}
 		})
-	}
-}
-
-func TestTypeSize_EmptyInfo(t *testing.T) {
-	if got := typeSize("", "PNGf"); got != 0 {
-		t.Errorf("typeSize on empty = %d, want 0", got)
-	}
-}
-
-func TestTypeSize_NoNumber(t *testing.T) {
-	if got := typeSize("«class PNGf», , JPEG", "PNGf"); got != 0 {
-		t.Errorf("typeSize with missing number = %d, want 0", got)
 	}
 }

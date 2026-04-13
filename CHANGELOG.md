@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - macOS clipboard watcher used invalid AppleScript to read pasteboard change count, causing it to fail and fall back to polling
 - Repeated "image-rejected" entries no longer spam clipboard history when an oversized image stays on the clipboard
-- macOS: large clipboard images (screenshots) no longer cause timeouts; image size is checked via `clipboard info` before reading data
+- macOS: large clipboard images (screenshots) no longer cause timeouts; replaced generic `clipboard info` with targeted per-type queries to avoid pasteboard serialization
 
 ## [0.4.0] - 2026-04-12
 
