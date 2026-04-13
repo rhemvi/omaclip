@@ -253,6 +253,12 @@ func (m *Monitor) readClipboard(parent context.Context) {
 	imgData, imgErr := m.reader.GetImage(ctx)
 	if imgErr != nil {
 		if errors.Is(imgErr, imagefilereader.ErrImageTooLarge) {
+			errHash := sha256Hex([]byte(imgErr.Error()))
+			if errHash == m.lastSeenHash {
+				return
+			}
+			m.lastSeenHash = errHash
+			m.lastSeen = ""
 			m.log.Warn("image rejected before reading: file too large", "error", imgErr)
 			m.addEntry(ClipboardEntry{
 				ID:          fmt.Sprintf("%d", time.Now().UnixNano()),

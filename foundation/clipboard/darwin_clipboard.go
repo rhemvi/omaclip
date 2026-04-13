@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -61,6 +62,12 @@ func (d DarwinClipboard) GetImage(ctx context.Context) ([]byte, error) {
 	}
 
 	if containsType(info, "PNGf") {
+		if size := typeSize(info, "PNGf"); size > d.imgReader.MaxPngBytes() {
+			return nil, fmt.Errorf(
+				"%w: clipboard PNG is %.2f MB, limit is %d MB",
+				imagefilereader.ErrImageTooLarge, float64(size)/(1024*1024), d.imgReader.MaxPngBytes()/(1024*1024),
+			)
+		}
 		data, err := d.readClipboardAs(ctx, "«class PNGf»", "omaclip-read-*.png")
 		if err != nil {
 			return nil, fmt.Errorf("read PNGf: %w", err)
@@ -71,6 +78,12 @@ func (d DarwinClipboard) GetImage(ctx context.Context) ([]byte, error) {
 	}
 
 	if containsType(info, "JPEG picture") {
+		if size := typeSize(info, "JPEG picture"); size > d.imgReader.MaxNonPngBytes() {
+			return nil, fmt.Errorf(
+				"%w: clipboard JPEG is %.2f MB, limit is %d MB",
+				imagefilereader.ErrImageTooLarge, float64(size)/(1024*1024), d.imgReader.MaxNonPngBytes()/(1024*1024),
+			)
+		}
 		data, err := d.readClipboardAs(ctx, "JPEG picture", "omaclip-read-*.jpg")
 		if err != nil {
 			return nil, fmt.Errorf("read JPEG: %w", err)
@@ -227,4 +240,33 @@ func (d DarwinClipboard) changeCount(ctx context.Context) (string, error) {
 
 func containsType(info, typeName string) bool {
 	return strings.Contains(info, typeName)
+}
+
+// typeSize extracts the byte count for a given type name from clipboard info output.
+// Format: "«class PNGf», 10845271, JPEG picture, 1522509, ..."
+// Returns 0 if the type is not found or the size cannot be parsed.
+func typeSize(info, typeName string) int64 {
+	idx := strings.Index(info, typeName)
+	if idx < 0 {
+		return 0
+	}
+	rest := info[idx+len(typeName):]
+	// Skip any non-digit characters (e.g. "»", ",", " ") to reach the byte count.
+	start := 0
+	for start < len(rest) && (rest[start] < '0' || rest[start] > '9') {
+		start++
+	}
+	rest = rest[start:]
+	end := 0
+	for end < len(rest) && rest[end] >= '0' && rest[end] <= '9' {
+		end++
+	}
+	if end == 0 {
+		return 0
+	}
+	n, err := strconv.ParseInt(rest[:end], 10, 64)
+	if err != nil {
+		return 0
+	}
+	return n
 }
