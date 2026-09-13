@@ -21,6 +21,7 @@ hot-reloading its color scheme the moment your OS theme changes.
 - Secure multi-machine sync, peers discover each other via mDNS and sync
   over HTTPS with certificate validation and a shared passphrase; only
   machines with the same passphrase can connect
+- Checksum check first, before a sync from remote peer, no wasteful network traffic
 - Optional mDNS interface binding for multi-NIC setups
 - Manual peer configuration and fixed sync server port for VPN/routed networks
 
@@ -114,21 +115,6 @@ Omaclip can be configured via CLI flags or environment variables. Run
 On first launch, omaclip will prompt for a passphrase used to secure peer
 sync. It is saved by default to `~/.config/omaclip/config.json`. All machines must
 share the same passphrase to discover and sync with each other.
-
-### Incremental clipboard sync
-
-Peers check a small history checksum every two seconds by default. Unchanged
-history causes no text or image downloads. When it changes, Omaclip fetches a
-payload-free manifest and downloads only content missing from that peer's cache.
-SHA-256 checksums use exact stored bytes, not visual image similarity.
-
-The previous complete history remains visible until all replacement content has
-arrived. Failed downloads retry on later polls, reusing successful downloads.
-Peer caches are in-memory and released when the peer disappears.
-
-This uses sync protocol v2. Upgrade all machines together: incompatible mDNS
-peers are excluded, and manually configured peers must also support v2. There is
-no fallback to the older protocol.
 
 ### Copy hook
 
