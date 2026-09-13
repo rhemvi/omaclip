@@ -206,6 +206,40 @@ omaclip --sync-server-port=36742 \
   --peers-list=alice@100.104.105.106:36742
 ```
 
+## Firewall configuration
+
+If a firewall is enabled, allow mDNS discovery and Omaclip's HTTPS sync traffic
+on the trusted local network. Using a fixed sync port makes the firewall rules
+predictable:
+
+```bash
+omaclip --peers-mdns-interface=wlan0 --sync-server-port=36742
+```
+
+For example, with UFW:
+
+```bash
+# Receive mDNS queries
+sudo ufw allow in on wlan0 proto udp \
+  from 192.168.1.0/24 to 224.0.0.251 port 5353 \
+  comment 'allow-omaclip-mdns-queries'
+
+# Receive mDNS responses on the ephemeral ports used by hashicorp/mdns
+sudo ufw allow in on wlan0 proto udp \
+  from 192.168.1.0/24 port 5353 to any port 32768:60999 \
+  comment 'allow-omaclip-mdns-responses'
+
+# Receive clipboard synchronization requests
+sudo ufw allow in on wlan0 proto tcp \
+  from 192.168.1.0/24 to any port 36742 \
+  comment 'allow-omaclip-sync'
+```
+
+Replace the interface, subnet, sync port, and ephemeral port range as needed.
+On Linux, check the current ephemeral port range with
+`sysctl net.ipv4.ip_local_port_range`. Keep these rules restricted to your
+trusted LAN.
+
 ## Live Development
 
 To run in live development mode, run `wails dev` in the project directory.
