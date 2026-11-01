@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { EventsOn } from '../wailsjs/runtime/runtime'
-import { GetTheme, NeedsPassphrase, RemoteClipboardsEnabled } from '../wailsjs/go/app/App'
+import { Events } from '@wailsio/runtime'
+import { GetTheme, NeedsPassphrase, RemoteClipboardsEnabled } from '../bindings/github.com/rhemvi/omaclip/app/app.js'
 import { useThemeStore } from './stores/theme'
 import { useClipboardStore } from './stores/clipboard'
 import { useRemoteStore } from './stores/remote'
@@ -32,6 +32,7 @@ const shortcuts = computed(() => allShortcuts.filter(s => !s.remoteOnly || remot
 
 let lastMouseX = 0
 let lastMouseY = 0
+let unsubscribeTheme
 
 function handleMouseMove(e) {
   const dx = Math.abs(e.clientX - lastMouseX)
@@ -97,7 +98,7 @@ function handleKeydown(e) {
 }
 
 onMounted(async () => {
-  EventsOn('theme:loaded', themeStore.applyColors)
+  unsubscribeTheme = Events.On('theme:loaded', event => themeStore.applyColors(event.data))
 
   const colors = await GetTheme()
   if (colors && colors.background) {
@@ -112,6 +113,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  unsubscribeTheme?.()
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('mousemove', handleMouseMove)
 })

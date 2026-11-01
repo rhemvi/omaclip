@@ -5,18 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build:dev": "vite build --minify false --mode development",
     "build": "vite build && touch dist/.gitkeep",
     "preview": "vite preview"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@vue/devtools-api": "^8.1.5",
-    "pinia": "^4.0.3",
+    "@vue/devtools-api": "^8.2.1",
+    "@wailsio/runtime": "3.0.0",
+    "pinia": "^4.1.0",
     "tailwindcss": "^4.3.3",
-    "vue": "^3.5.41"
+    "vue": "^3.5.44"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.8",
-    "vite": "^8.2.1"
+    "@vitejs/plugin-vue": "^6.0.10",
+    "vite": "^8.3.5"
   }
 }

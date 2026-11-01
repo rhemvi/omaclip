@@ -1,0 +1,65 @@
+version: "3"
+
+includes:
+  common: ../Taskfile.yml
+
+tasks:
+  build:
+    desc: Build Omaclip for macOS
+    deps:
+      - common:go:mod:tidy
+      - common:generate:icons
+      - task: common:build:frontend
+        vars:
+          BUILD_FLAGS: '{{if eq .DEV "true"}}{{else}}-tags production{{end}}'
+          DEV: '{{.DEV}}'
+    vars:
+      REVISION:
+        sh: git rev-parse --short HEAD
+      MODIFIED:
+        sh: git diff --quiet && echo false || echo true
+      OUTPUT: '{{.OUTPUT | default (printf "%s/%s" .BIN_DIR .APP_NAME)}}'
+    cmds:
+      - wails3 tool prepare-macos-output --dir "{{.BIN_DIR}}"
+      - mkdir -p {{.BIN_DIR}}
+      - >-
+        go build
+        {{if eq .DEV "true"}}-gcflags=all="-l"{{else}}-tags production -trimpath{{end}}
+        -buildvcs=false
+        -ldflags="-w -s -X github.com/rhemvi/omaclip/foundation/vcs.Revision={{.REVISION}} -X github.com/rhemvi/omaclip/foundation/vcs.Modified={{.MODIFIED}}"
+        -o {{.OUTPUT}}
+        .
+    env:
+      GOOS: darwin
+      GOARCH: '{{.ARCH | default ARCH}}'
+      CGO_ENABLED: 1
+      CGO_CFLAGS: -mmacosx-version-min=12.0
+      CGO_LDFLAGS: -mmacosx-version-min=12.0
+      MACOSX_DEPLOYMENT_TARGET: 12.0
+
+  package:
+    desc: Build a macOS app bundle
+    deps: [build]
+    cmds:
+      - test -n "{{.BIN_DIR}}" && test -n "{{.APP_NAME}}" && rm -rf -- "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
+      - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - codesign --verify --deep --strict "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+
+  run:
+    cmds:
+      - wails3 tool prepare-macos-output --dir "{{.BIN_DIR}}"
+      - test -n "{{.BIN_DIR}}" && test -n "{{.APP_NAME}}" && rm -rf -- "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
+      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
+      - cp build/darwin/Info.dev.plist "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - xattr -cr "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
+      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
+      - codesign --verify --deep --strict "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
+      - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'

@@ -62,30 +62,30 @@ install_deps_linux() {
 
   if command -v apt-get &>/dev/null; then
     echo "Installing dependencies via apt..."
-    sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.1-0 ${CLIP_PKGS}
+    sudo apt-get install -y libgtk-4-1 libwebkitgtk-6.0-4 ${CLIP_PKGS}
   elif command -v pacman &>/dev/null; then
     echo "Installing dependencies via pacman..."
-    sudo pacman -S --needed --noconfirm gtk3 webkit2gtk-4.1 ${CLIP_PKGS}
+    sudo pacman -S --needed --noconfirm gtk4 webkitgtk-6.0 ${CLIP_PKGS}
   elif command -v apk &>/dev/null; then
     echo "Installing dependencies via apk (Alpine)..."
-    sudo apk add --no-cache gtk+3.0 webkit2gtk-4.1 ${CLIP_PKGS}
+    sudo apk add --no-cache gtk4.0 webkit2gtk-6.0 ${CLIP_PKGS}
   elif command -v rpm-ostree &>/dev/null; then
     echo "Installing dependencies via rpm-ostree (Fedora Atomic)..."
-    sudo rpm-ostree install -y --idempotent --allow-inactive --apply-live gtk3 webkit2gtk4.1 ${CLIP_PKGS}
+    sudo rpm-ostree install -y --idempotent --allow-inactive --apply-live gtk4 webkitgtk6.0 ${CLIP_PKGS}
   elif command -v dnf &>/dev/null; then
     echo "Installing dependencies via dnf..."
-    sudo dnf install -y gtk3 webkit2gtk4.1 ${CLIP_PKGS}
+    sudo dnf install -y gtk4 webkitgtk6.0 ${CLIP_PKGS}
   elif command -v xbps-install &>/dev/null; then
     echo "Installing dependencies via xbps (Void Linux)..."
-    sudo xbps-install -Sy gtk+3 webkit2gtk ${CLIP_PKGS}
+    sudo xbps-install -Sy gtk4 libwebkitgtk60 ${CLIP_PKGS}
   elif command -v zypper &>/dev/null; then
     echo "Installing dependencies via zypper..."
-    sudo zypper install -y libgtk-3-0 libwebkit2gtk-4_1-0 ${CLIP_PKGS}
+    sudo zypper install -y libgtk-4-1 libwebkitgtk-6_0-4 ${CLIP_PKGS}
   else
     echo "No supported package manager found (apt, pacman, apk, rpm-ostree, dnf, xbps, zypper)."
     echo "Please install the following libraries manually:"
-    echo "  - GTK 3 runtime"
-    echo "  - WebKit2GTK 4.1 runtime"
+    echo "  - GTK 4 runtime"
+    echo "  - WebKitGTK 6.0 runtime"
     echo "  - A clipboard tool (wl-clipboard for Wayland, xclip for X11)"
     exit 1
   fi

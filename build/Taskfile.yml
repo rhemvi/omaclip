@@ -1,0 +1,67 @@
+version: "3"
+
+tasks:
+  go:mod:tidy:
+    internal: true
+    run: once
+    cmds:
+      - go mod tidy
+
+  install:frontend:deps:
+    internal: true
+    run: once
+    dir: frontend
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules
+    cmds:
+      - npm install
+
+  generate:bindings:
+    internal: true
+    run: once
+    deps: [go:mod:tidy]
+    sources:
+      - "**/*.go"
+      - frontend/bindings/**/*
+      - go.mod
+      - go.sum
+    generates:
+      - ../frontend/bindings/**/*
+    cmds:
+      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true -time-type=Date
+
+  build:frontend:
+    internal: true
+    run: once
+    deps:
+      - install:frontend:deps
+      - task: generate:bindings
+        vars:
+          BUILD_FLAGS: '{{.BUILD_FLAGS}}'
+    dir: frontend
+    sources:
+      - "**/*"
+      - exclude: node_modules/**/*
+    generates:
+      - dist/**/*
+    cmds:
+      - npm run {{if eq .DEV "true"}}build:dev{{else}}build{{end}}
+
+  dev:frontend:
+    deps: [install:frontend:deps]
+    dir: frontend
+    cmds:
+      - npm run dev
+
+  generate:icons:
+    internal: true
+    sources:
+      - appicon.png
+    generates:
+      - darwin/icons.icns
+    dir: build
+    cmds:
+      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns

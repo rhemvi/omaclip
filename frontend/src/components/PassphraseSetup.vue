@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { SubmitPassphrase, GetConfigPath } from '../../wailsjs/go/app/App'
+import { SubmitPassphrase, GetConfigPath } from '../../bindings/github.com/rhemvi/omaclip/app/app.js'
 
 const emit = defineEmits(['done'])
 const passphrase = ref('')

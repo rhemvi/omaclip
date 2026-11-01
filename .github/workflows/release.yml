@@ -23,22 +23,20 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m github.com/wailsapp/wails/v2 | cut -d' ' -f2)
-
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev \
             pkg-config
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m github.com/wailsapp/wails/v3 | cut -d' ' -f2)
 
       - name: Build
         run: |
-          REVISION=$(git rev-parse --short HEAD)
-          MODIFIED=$(git diff --quiet && echo false || echo true)
-          wails build -tags webkit2_41 -platform linux/amd64 -ldflags "-X github.com/rhemvi/omaclip/foundation/vcs.Revision=${REVISION} -X github.com/rhemvi/omaclip/foundation/vcs.Modified=${MODIFIED}"
+          wails3 task linux:build ARCH=amd64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -63,22 +61,20 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m github.com/wailsapp/wails/v2 | cut -d' ' -f2)
-
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev \
             pkg-config
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m github.com/wailsapp/wails/v3 | cut -d' ' -f2)
 
       - name: Build
         run: |
-          REVISION=$(git rev-parse --short HEAD)
-          MODIFIED=$(git diff --quiet && echo false || echo true)
-          wails build -tags webkit2_41 -platform linux/arm64 -ldflags "-X github.com/rhemvi/omaclip/foundation/vcs.Revision=${REVISION} -X github.com/rhemvi/omaclip/foundation/vcs.Modified=${MODIFIED}"
+          wails3 task linux:build ARCH=arm64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -104,13 +100,11 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m github.com/wailsapp/wails/v2 | cut -d' ' -f2)
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m github.com/wailsapp/wails/v3 | cut -d' ' -f2)
 
       - name: Build
         run: |
-          REVISION=$(git rev-parse --short HEAD)
-          MODIFIED=$(git diff --quiet && echo false || echo true)
-          wails build -platform darwin/amd64 -ldflags "-X github.com/rhemvi/omaclip/foundation/vcs.Revision=${REVISION} -X github.com/rhemvi/omaclip/foundation/vcs.Modified=${MODIFIED}"
+          wails3 task darwin:package ARCH=amd64
 
       - name: Zip .app bundle
         run: cd build/bin && zip -r omaclip-darwin-amd64.zip omaclip.app
@@ -145,13 +139,11 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m github.com/wailsapp/wails/v2 | cut -d' ' -f2)
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m github.com/wailsapp/wails/v3 | cut -d' ' -f2)
 
       - name: Build
         run: |
-          REVISION=$(git rev-parse --short HEAD)
-          MODIFIED=$(git diff --quiet && echo false || echo true)
-          wails build -platform darwin/arm64 -ldflags "-X github.com/rhemvi/omaclip/foundation/vcs.Revision=${REVISION} -X github.com/rhemvi/omaclip/foundation/vcs.Modified=${MODIFIED}"
+          wails3 task darwin:package ARCH=arm64
 
       - name: Zip .app bundle
         run: cd build/bin && zip -r omaclip-darwin-arm64.zip omaclip.app

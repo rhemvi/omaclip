@@ -1,7 +1,15 @@
 version: "3"
 
 vars:
-  GOLANGCI_LINT_VERSION: v2.12.2
+  APP_NAME: omaclip
+  BIN_DIR: build/bin
+  WAILS_VERSION: v3.0.0
+  GOOS: '{{.GOOS | default OS}}'
+
+includes:
+  common: ./build/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
 
 tasks:
   default:
@@ -9,35 +17,41 @@ tasks:
       - task: app:dev
     silent: true
 
-  frontend:build:
-    desc: Build the Vue frontend
-    dir: frontend
+  build:
     cmds:
-      - npm run build
+      - task: "{{.GOOS}}:build"
+
+  package:
+    cmds:
+      - task: "{{.GOOS}}:package"
+
+  run:
+    cmds:
+      - task: "{{.GOOS}}:run"
 
   wails:install:
     desc: Install the pinned Wails CLI version
     internal: true
     cmds:
-      - go install github.com/wailsapp/wails/v2/cmd/wails@$(go list -m github.com/wailsapp/wails/v2 | cut -d' ' -f2)
+      - go install github.com/wailsapp/wails/v3/cmd/wails3@{{.WAILS_VERSION}}
+
+  frontend:build:
+    desc: Build the Vue frontend and regenerate Wails bindings
+    deps: [wails:install]
+    cmds:
+      - task: common:build:frontend
 
   app:build:
-    desc: Build the production binary with VCS info embedded
+    desc: Build the production application
     deps: [wails:install]
-    vars:
-      REVISION:
-        sh: git rev-parse --short HEAD
-      MODIFIED:
-        sh: git diff --quiet && echo false || echo true
     cmds:
-      - go mod tidy
-      - wails build -tags webkit2_41 -ldflags "-X github.com/rhemvi/omaclip/foundation/vcs.Revision={{.REVISION}} -X github.com/rhemvi/omaclip/foundation/vcs.Modified={{.MODIFIED}}"
+      - wails3 build
 
   app:dev:
     desc: Start the application in development mode
     deps: [wails:install]
     cmds:
-      - wails dev
+      - wails3 dev -config ./build/config.yml
 
   test:
     desc: Run all Go tests
@@ -47,6 +61,8 @@ tasks:
   golangci-lint:install:
     desc: Install the pinned golangci-lint version when it is missing or outdated
     internal: true
+    vars:
+      GOLANGCI_LINT_VERSION: v2.12.2
     status:
       - test "v$(golangci-lint version --short)" = "{{.GOLANGCI_LINT_VERSION}}"
     cmds:
@@ -59,7 +75,7 @@ tasks:
       - golangci-lint run ./...
 
   aur:clean:
-    desc: Remove downloaded omaclip-linux-* binaries from build/aur
+    desc: Remove downloaded omaclip-linux binaries from build/aur
     dir: build/aur
     cmds:
       - rm -f omaclip-linux-*

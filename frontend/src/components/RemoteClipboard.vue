@@ -1,10 +1,11 @@
 <script setup>
 import { onMounted, onUnmounted } from 'vue'
-import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
+import { Events } from '@wailsio/runtime'
 import { useRemoteStore } from '../stores/remote'
 import ClipboardItem from './ClipboardItem.vue'
 
 const remote = useRemoteStore()
+let unsubscribeRemote
 
 function entriesForPeer(peerName) {
   return remote.flatEntries.filter(e => e.peerName === peerName)
@@ -12,11 +13,11 @@ function entriesForPeer(peerName) {
 
 onMounted(() => {
   remote.fetchRemote()
-  EventsOn('remote:updated', remote.fetchRemote)
+  unsubscribeRemote = Events.On('remote:updated', () => remote.fetchRemote())
 })
 
 onUnmounted(() => {
-  EventsOff('remote:updated')
+  unsubscribeRemote?.()
 })
 </script>
 

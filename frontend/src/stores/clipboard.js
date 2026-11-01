@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { GetHistory, CopyItem, GetMaxPinned, SetPinnedIDs } from '../../wailsjs/go/app/App'
+import { GetHistory, CopyItem, GetMaxPinned, SetPinnedIDs } from '../../bindings/github.com/rhemvi/omaclip/app/app.js'
 import { useNavigation } from './navigation'
 
 export const useClipboardStore = defineStore('clipboard', () => {
