@@ -10,7 +10,7 @@ on:
 
 jobs:
   format:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -29,7 +29,7 @@ jobs:
           fi
 
   tidy:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -44,7 +44,7 @@ jobs:
           git diff --exit-code -- go.mod go.sum
 
   test:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -57,7 +57,7 @@ jobs:
         run: go test ./...
 
   lint:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -74,7 +74,7 @@ jobs:
   build-amd64:
     if: github.event_name == 'schedule'
     needs: [format, tidy, test, lint]
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
