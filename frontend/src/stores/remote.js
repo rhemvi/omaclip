@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { GetRemoteClipboards, CopyRemoteItem, CopyRemoteImage } from '../../wailsjs/go/app/App'
+import { GetRemoteClipboards, CopyRemoteItem, CopyRemoteImage } from '../../bindings/github.com/rhemvi/omaclip/app/app.js'
 import { useNavigation } from './navigation'
 
 export const useRemoteStore = defineStore('remote', () => {

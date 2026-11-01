@@ -1,0 +1,41 @@
+version: "3"
+
+info:
+  companyName: Athanasios Ntavelis
+  productName: Omaclip
+  productIdentifier: com.rhemvi.omaclip
+  description: A clipboard manager with local network sync
+  copyright: Copyright 2026 Athanasios Ntavelis
+  comments: Secure local clipboard history and peer sync
+  version: 0.10.0
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 500
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    - cmd: wails3 build DEV=true
+      type: blocking
+    - cmd: wails3 task common:dev:frontend
+      type: background
+      readiness:
+        http: http://127.0.0.1:9245/
+        timeout: 60s
+        interval: 200ms
+    - cmd: wails3 task run
+      type: primary
+      exit_policy: shutdown

@@ -52,7 +52,7 @@ the binary.
 ##### Debian / Ubuntu
 
 ```bash
-sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0 xclip
+sudo apt install libgtk-4-1 libwebkitgtk-6.0-4 xclip
 curl -fsSL https://github.com/rhemvi/omaclip/releases/latest/download/omaclip-linux-amd64 -o omaclip
 sudo install -m 755 omaclip /usr/local/bin/omaclip
 ```
@@ -60,7 +60,7 @@ sudo install -m 755 omaclip /usr/local/bin/omaclip
 ##### Arch Linux
 
 ```bash
-sudo pacman -S --needed gtk3 webkit2gtk-4.1 wl-clipboard
+sudo pacman -S --needed gtk4 webkitgtk-6.0 wl-clipboard
 curl -fsSL https://github.com/rhemvi/omaclip/releases/latest/download/omaclip-linux-amd64 -o omaclip
 sudo install -m 755 omaclip /usr/local/bin/omaclip
 ```
@@ -68,7 +68,7 @@ sudo install -m 755 omaclip /usr/local/bin/omaclip
 ##### Fedora / RHEL
 
 ```bash
-sudo dnf install gtk3 webkit2gtk4.1 wl-clipboard
+sudo dnf install gtk4 webkitgtk6.0 wl-clipboard
 curl -fsSL https://github.com/rhemvi/omaclip/releases/latest/download/omaclip-linux-amd64 -o omaclip
 sudo install -m 755 omaclip /usr/local/bin/omaclip
 ```
@@ -76,7 +76,7 @@ sudo install -m 755 omaclip /usr/local/bin/omaclip
 ##### openSUSE
 
 ```bash
-sudo zypper install libgtk-3-0 libwebkit2gtk-4_1-0 xclip
+sudo zypper install libgtk-4-1 libwebkitgtk-6_0-4 xclip
 curl -fsSL https://github.com/rhemvi/omaclip/releases/latest/download/omaclip-linux-amd64 -o omaclip
 sudo install -m 755 omaclip /usr/local/bin/omaclip
 ```
@@ -242,12 +242,9 @@ trusted LAN.
 
 ## Live Development
 
-To run in live development mode, run `wails dev` in the project directory.
+To run in live development mode, run `wails3 dev -config ./build/config.yml` in the project directory.
 This will run a Vite development server that will provide very fast hot reload
-of your frontend changes. If you want to develop in a browser and have access
-to your Go methods, there is also a dev server that runs on
-<http://localhost:34115>. Connect to this in your browser, and you can call your
-Go code from devtools.
+of your frontend changes on Wails' managed development port (9245 by default).
 
 ## Building
 

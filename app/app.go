@@ -1,4 +1,4 @@
-// Package app is the Wails bind target that wires together all business packages.
+// Package app exposes the Wails service that wires together all business packages.
 package app
 
 import (
@@ -24,7 +24,7 @@ import (
 	"github.com/rhemvi/omaclip/foundation/peers"
 	"github.com/rhemvi/omaclip/foundation/tlscert"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 var (
@@ -56,8 +56,9 @@ type peersProvider interface {
 	Peers() []fmdns.Peer
 }
 
-// App is the Wails bind target. It owns startup/shutdown and delegates to business packages.
+// App is the Wails service. It owns startup/shutdown and delegates to business packages.
 type App struct {
+	wailsApp        *application.App
 	ctx             context.Context
 	log             *slog.Logger
 	cfg             Config
@@ -71,8 +72,9 @@ type App struct {
 }
 
 // NewApp creates an App with the provided configuration.
-func NewApp(log *slog.Logger, cfg Config) *App {
+func NewApp(wailsApp *application.App, log *slog.Logger, cfg Config) *App {
 	return &App{
+		wailsApp:        wailsApp,
 		cfg:             cfg,
 		log:             log,
 		copyHook:        copyhook.NewRunner(log, cfg.CopyHook),
@@ -80,15 +82,14 @@ func NewApp(log *slog.Logger, cfg Config) *App {
 	}
 }
 
-// Startup is called by Wails when the application starts.
-func (a *App) Startup(ctx context.Context) {
+// ServiceStartup initialises the clipboard monitor and optional peer networking.
+func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.ctx = ctx
 	a.log.Info("starting application")
 
 	reader, writer, backend, err := osclip.NewReaderWriter(a.cfg.MaxPngImageMB, a.cfg.MaxNonPngImageMB)
 	if err != nil {
-		a.log.Error("clipboard unavailable", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("clipboard unavailable: %w", err)
 	}
 	a.log.Info("clipboard backend selected", "backend", backend)
 	a.monitor = clipboard.NewMonitor(a.log, reader, writer, a.cfg.MaxHistory, a.cfg.MaxPngImageMB, a.cfg.MaxNonPngImageMB, a.cfg.PollInterval)
@@ -101,12 +102,12 @@ func (a *App) Startup(ctx context.Context) {
 			a.log.Warn("could not load theme", "error", err)
 		} else {
 			a.colors = colors
-			runtime.EventsEmit(ctx, "theme:loaded", colors)
+			a.wailsApp.Event.Emit("theme:loaded", colors)
 		}
 
 		w := theme.NewWatcher(themeColorPath, func(c theme.ThemeColors) {
 			a.colors = c
-			runtime.EventsEmit(ctx, "theme:loaded", c)
+			a.wailsApp.Event.Emit("theme:loaded", c)
 		})
 		if err := w.Start(ctx); err != nil {
 			a.log.Warn("could not watch theme file", "error", err)
@@ -119,41 +120,44 @@ func (a *App) Startup(ctx context.Context) {
 	}
 
 	if err := validatePassphraseFromConfig(a.cfg.ConfigPath, a.passphraseStore); err != nil {
-		a.log.Error(fmt.Sprintf(
+		return fmt.Errorf(
 			"invalid passphrase in config file — fix or delete %s and restart: %s",
 			a.cfg.ConfigPath,
 			err,
-		))
-		os.Exit(1)
+		)
 	}
 
 	if a.passphraseStore.Get() != "" && !a.cfg.DisableRemoteClipboards {
 		if err := a.startNetworking(); err != nil {
 			a.log.Error("failed to start networking", "error", err)
 			if errors.Is(err, fmdns.ErrInterfaceNotFound) {
-				a.log.Error("the requested network interface is not available, " +
-					"please pass a valid network interface or skip the flag to auto discover")
-				os.Exit(1)
+				return fmt.Errorf("the requested network interface is not available; pass a valid network interface or skip the flag to auto discover: %w", err)
 			}
 		}
 	}
 
 	a.monitor.OnNewEntry = func(entry clipboard.ClipboardEntry) {
-		runtime.EventsEmit(ctx, "clipboard:new", entry)
+		a.wailsApp.Event.Emit("clipboard:new", entry)
 	}
 	a.monitor.Start(ctx)
+	return nil
 }
 
-// Shutdown is called by Wails when the application is closing.
-func (a *App) Shutdown(ctx context.Context) {
+// ServiceShutdown releases background resources when the application closes.
+func (a *App) ServiceShutdown() error {
 	a.log.Info("shutting down application")
-	a.monitor.Stop()
+	if a.monitor != nil {
+		a.monitor.Stop()
+	}
 	if a.syncServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		a.syncServer.Shutdown(ctx)
 	}
 	if a.discoverer != nil {
 		a.discoverer.Shutdown()
 	}
+	return nil
 }
 
 // GetHistory returns all clipboard entries in reverse-chronological order.
@@ -312,7 +316,7 @@ func (a *App) startNetworking() error {
 		caPool,
 	)
 	a.peerFetcher.OnUpdate = func() {
-		runtime.EventsEmit(a.ctx, "remote:updated")
+		a.wailsApp.Event.Emit("remote:updated")
 	}
 	a.peerFetcher.Start(a.ctx)
 	return nil

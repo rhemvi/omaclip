@@ -57,7 +57,7 @@ func TestCopyRemoteItemDoesNotTriggerHookWhenClipboardWriteFails(t *testing.T) {
 
 func newHookTestApp(writer clipboard.Writer, hook string) *App {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	app := NewApp(log, Config{CopyHook: hook})
+	app := NewApp(nil, log, Config{CopyHook: hook})
 	app.monitor = clipboard.NewMonitor(log, nil, writer, 1, 1, 1, time.Second)
 	return app
 }

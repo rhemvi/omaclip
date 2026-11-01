@@ -6,7 +6,7 @@ A Wails desktop clipboard manager that tracks clipboard history and syncs across
 
 ## Tech Stack
 
-- **Backend**: Go (Wails v2)
+- **Backend**: Go (Wails v3)
 - **Frontend**: Vue 3 + Vite + Pinia
 - **CSS**: TailwindCSS only — no other CSS frameworks, no custom CSS classes outside of Tailwind utilities
 - **Peer Discovery**: mDNS via `hashicorp/mdns` (`_omaclip._tcp` service type)
@@ -65,7 +65,7 @@ A Wails desktop clipboard manager that tracks clipboard history and syncs across
 
 ## Architecture Notes
 
-- `app/app.go` — main Wails struct; exposes Go methods to the frontend via `Bind`
+- `app/app.go` — main Wails service; exposes Go methods through generated service bindings
 - `app/routes.go` — registers HTTP routes on the sync server
 - `app/handlers/` — HTTP handlers (clipboard endpoint)
 - `business/clipboard/` — clipboard monitor, history, reader/writer interfaces

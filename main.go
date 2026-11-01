@@ -15,9 +15,7 @@ import (
 	"github.com/rhemvi/omaclip/foundation/vcs"
 
 	"github.com/ardanlabs/conf/v3"
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed all:frontend/dist
@@ -87,7 +85,18 @@ func run() error {
 	}
 	log.Info("application configuration", "config", cfgStr)
 
-	application := app.NewApp(log, app.Config{
+	wailsApp := application.New(application.Options{
+		Name:        "omaclip",
+		Description: "A clipboard manager with local network sync",
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
+		},
+		Mac: application.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: true,
+		},
+	})
+
+	service := app.NewApp(wailsApp, log, app.Config{
 		MaxHistory:                   cfg.Clipboard.MaxHistory,
 		MaxPinned:                    cfg.Clipboard.MaxPinned,
 		MaxPngImageMB:                cfg.Clipboard.MaxPngImageMB,
@@ -105,20 +114,17 @@ func run() error {
 		SyncServerPort:               cfg.SyncServer.Port,
 	})
 
-	if err := wails.Run(&options.App{
-		Title:  "omaclip",
-		Width:  1024,
-		Height: 768,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
-		},
-		BackgroundColour: &options.RGBA{R: 26, G: 27, B: 38, A: 1},
-		OnStartup:        application.Startup,
-		OnShutdown:       application.Shutdown,
-		Bind: []any{
-			application,
-		},
-	}); err != nil {
+	wailsApp.RegisterService(application.NewService(service))
+	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             "main",
+		Title:            "omaclip",
+		Width:            1024,
+		Height:           768,
+		BackgroundColour: application.NewRGB(26, 27, 38),
+		URL:              "/",
+	})
+
+	if err := wailsApp.Run(); err != nil {
 		return err
 	}
 

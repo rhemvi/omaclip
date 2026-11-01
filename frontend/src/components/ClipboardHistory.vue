@@ -1,19 +1,20 @@
 <script setup>
 import { onMounted, onUnmounted } from 'vue'
-import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
+import { Events } from '@wailsio/runtime'
 import { useClipboardStore } from '../stores/clipboard'
 import ClipboardItem from './ClipboardItem.vue'
 
 const clipboard = useClipboardStore()
+let unsubscribeClipboard
 
 onMounted(() => {
   clipboard.fetchMaxPinned()
   clipboard.fetchHistory()
-  EventsOn('clipboard:new', clipboard.fetchHistory)
+  unsubscribeClipboard = Events.On('clipboard:new', () => clipboard.fetchHistory())
 })
 
 onUnmounted(() => {
-  EventsOff('clipboard:new')
+  unsubscribeClipboard?.()
 })
 </script>
 

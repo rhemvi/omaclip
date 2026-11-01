@@ -5,7 +5,7 @@ pkgdesc="Desktop clipboard manager with secure mesh sync — peers auto-discover
 arch=('x86_64' 'aarch64')
 url="https://github.com/rhemvi/omaclip"
 license=('MIT')
-depends=('gtk3' 'webkit2gtk-4.1')
+depends=('gtk4' 'webkitgtk-6.0')
 optdepends=(
   'wl-clipboard: Wayland clipboard support'
   'xclip: X11 clipboard support'
