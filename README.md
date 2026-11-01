@@ -252,6 +252,7 @@ To build a redistributable, production ready package, run:
 
 ```bash
 task app:build
+./build/bin/omaclip
 ```
 
 ## Known Limitations

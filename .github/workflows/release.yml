@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: omaclip-linux-amd64
-          path: bin/omaclip
+          path: build/bin/omaclip
 
   build-linux-arm64:
     runs-on: ubuntu-24.04-arm
@@ -80,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: omaclip-linux-arm64
-          path: bin/omaclip
+          path: build/bin/omaclip
 
   build-darwin-amd64:
     runs-on: macos-latest
@@ -107,19 +107,19 @@ jobs:
           wails3 task darwin:package ARCH=amd64
 
       - name: Zip .app bundle
-        run: cd bin && zip -r omaclip-darwin-amd64.zip omaclip.app
+        run: cd build/bin && zip -r omaclip-darwin-amd64.zip omaclip.app
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v7
         with:
           name: omaclip-darwin-amd64-bin
-          path: bin/omaclip.app/Contents/MacOS/omaclip
+          path: build/bin/omaclip.app/Contents/MacOS/omaclip
 
       - name: Upload .app artifact
         uses: actions/upload-artifact@v7
         with:
           name: omaclip-darwin-amd64-app
-          path: bin/omaclip-darwin-amd64.zip
+          path: build/bin/omaclip-darwin-amd64.zip
 
   build-darwin-arm64:
     runs-on: macos-latest
@@ -146,19 +146,19 @@ jobs:
           wails3 task darwin:package ARCH=arm64
 
       - name: Zip .app bundle
-        run: cd bin && zip -r omaclip-darwin-arm64.zip omaclip.app
+        run: cd build/bin && zip -r omaclip-darwin-arm64.zip omaclip.app
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v7
         with:
           name: omaclip-darwin-arm64-bin
-          path: bin/omaclip.app/Contents/MacOS/omaclip
+          path: build/bin/omaclip.app/Contents/MacOS/omaclip
 
       - name: Upload .app artifact
         uses: actions/upload-artifact@v7
         with:
           name: omaclip-darwin-arm64-app
-          path: bin/omaclip-darwin-arm64.zip
+          path: build/bin/omaclip-darwin-arm64.zip
 
   release:
     needs:

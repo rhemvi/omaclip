@@ -2,7 +2,7 @@ version: "3"
 
 vars:
   APP_NAME: omaclip
-  BIN_DIR: bin
+  BIN_DIR: build/bin
   WAILS_VERSION: v3.0.0
   GOOS: '{{.GOOS | default OS}}'
 
