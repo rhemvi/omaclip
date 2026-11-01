@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated the macOS ARM64 release build to use GitHub's `macos-latest` runner instead of the retired macOS 14 image.
+
 ## [0.10.0] - 2026-09-08
 
 ### Changed
